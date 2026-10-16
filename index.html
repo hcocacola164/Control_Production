@@ -6,10 +6,16 @@
   <title>Display de Planta - Control de Producción</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* Fila completada manualmente */
     .completed-row {
       background-color: rgba(16, 185, 129, 0.15) !important;
       opacity: 0.6;
       text-decoration: line-through;
+    }
+    /* Resaltado estilo marcador verde fosforito */
+    .highlight-green {
+      background-color: rgba(34, 197, 94, 0.25) !important;
+      border-left: 4px solid #22c55e !important;
     }
   </style>
 </head>
@@ -49,11 +55,11 @@
     <button id="btn-prod" onclick="switchTab('PROD')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base">
       📋 Órdenes de Producción
     </button>
-    <button id="btn-lij" onclick="switchTab('LIJ')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
-      🪚 Lijadora
-    </button>
     <button id="btn-esc" onclick="switchTab('ESC')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
       📐 Escuadradora
+    </button>
+    <button id="btn-lij" onclick="switchTab('LIJ')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
+      🪚 Lijadora
     </button>
   </nav>
 
@@ -83,7 +89,6 @@
   </main>
 
   <script>
-    // PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT
     const API_URL = "https://script.google.com/macros/s/AKfycbyJq7f4P2Qeb6lC0CurkQZTg5gVGyBJJtuVdX5A515JZeo0NnMAFEeOpggLt8ududNN/exec"; 
 
     let fullData = { weeks: [], data: {} };
@@ -107,7 +112,7 @@
 
     function updateWeekSelector() {
       const select = document.getElementById('week-select');
-      if (!fullData.weeks || fullData.weeks.length === 0) {
+      if (!fullData.weeks || !fullData.weeks.length) {
         select.innerHTML = `<option value="">Sin datos</option>`;
         return;
       }
@@ -129,13 +134,52 @@
     function switchTab(section) {
       currentSection = section;
       
-      const btnMap = { 'PROD': 'btn-prod', 'LIJ': 'btn-lij', 'ESC': 'btn-esc' };
+      const btnMap = { 'PROD': 'btn-prod', 'ESC': 'btn-esc', 'LIJ': 'btn-lij' };
       Object.keys(btnMap).forEach(sec => {
         document.getElementById(btnMap[sec]).className = "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base";
       });
 
       document.getElementById(btnMap[section]).className = "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base";
       renderCurrentTable();
+    }
+
+    // Busca estrictamente el número de OF (Orden de Fabricación) ignorando columnas de pedido
+    function getOrderKey(row) {
+      for (let k in row) {
+        const keyUpper = k.toUpperCase().trim();
+        // Buscar columnas cuyo nombre sea exactamente OF o contenga referencias a orden de fabricación
+        if (keyUpper === 'OF' || keyUpper === 'Nº OF' || keyUpper === 'N OF' || (keyUpper.includes('ORDEN') && !keyUpper.includes('PEDIDO'))) {
+          if (row[k] !== undefined && row[k] !== '') {
+            return String(row[k]).trim();
+          }
+        }
+      }
+      // Búsqueda secundaria estricta para campos que contengan OF pero nunca PEDIDO
+      for (let k in row) {
+        const keyUpper = k.toUpperCase().trim();
+        if (keyUpper.includes('OF') && !keyUpper.includes('PEDIDO')) {
+          if (row[k] !== undefined && row[k] !== '') {
+            return String(row[k]).trim();
+          }
+        }
+      }
+      return '';
+    }
+
+    // Comprueba si una OF concreta está marcada como HECHO en una sección específica
+    function isCompletedInSection(week, sectionCode, orderVal) {
+      if (!orderVal) return false;
+      const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
+      const targetRows = weekData[sectionCode] || [];
+
+      for (let i = 0; i < targetRows.length; i++) {
+        const val = getOrderKey(targetRows[i]);
+        if (val && val === orderVal) {
+          const key = `${week}-${sectionCode}-${i}`;
+          return !!completedRows[key];
+        }
+      }
+      return false;
     }
 
     function renderCurrentTable() {
@@ -170,11 +214,25 @@
 
       updateProgress(completedCount, rows.length);
 
-      bodyContainer.innerHTML = filteredRows.map((row, idx) => {
+      bodyContainer.innerHTML = filteredRows.map((row) => {
         const originalIndex = rows.indexOf(row);
         const key = `${currentWeek}-${currentSection}-${originalIndex}`;
         const isDone = !!completedRows[key];
-        const rowClass = isDone ? 'completed-row' : '';
+
+        const orderVal = getOrderKey(row);
+        
+        const prodDone = isCompletedInSection(currentWeek, 'PROD', orderVal);
+        const escDone = isCompletedInSection(currentWeek, 'ESC', orderVal);
+
+        let rowClass = '';
+        if (isDone) {
+          rowClass = 'completed-row';
+        } else if (currentSection === 'ESC' && prodDone) {
+          rowClass = 'highlight-green';
+        } else if (currentSection === 'LIJ' && escDone) {
+          rowClass = 'highlight-green';
+        }
+
         const btnClass = isDone 
           ? "bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-emerald-500 transition" 
           : "bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-600 transition border border-slate-600";
@@ -210,15 +268,23 @@
       counter.innerHTML = `Progreso: <span class="text-emerald-400 font-bold">${completed} / ${total} (${percent}%)</span>`;
     }
 
-    // Función para activar / desactivar Modo Kiosco (Pantalla completa)
     function toggleFullscreen() {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-          console.log(`Error al intentar pantalla completa: ${err.message}`);
-        });
+      const elem = document.documentElement;
+      const isInFullScreen = document.fullscreenElement || document.webkitFullscreenElement;
+
+      if (!isInFullScreen) {
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen().catch(err => console.log(err));
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        } else {
+          alert("Tu navegador móvil no permite pantalla completa mediante botón. Añade la página a la pantalla de inicio del dispositivo para abrirla como aplicación a pantalla completa.");
+        }
       } else {
         if (document.exitFullscreen) {
           document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
         }
       }
     }

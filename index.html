@@ -143,40 +143,43 @@
       renderCurrentTable();
     }
 
-    // Busca estrictamente el número de OF (Orden de Fabricación) ignorando columnas de pedido
-    function getOrderKey(row) {
+    // Crea una firma única combinando Cliente, Espesor y Material de la fila
+    function getRowSignature(row) {
+      let cliente = '';
+      let espesor = '';
+      let material = '';
+      
       for (let k in row) {
-        const keyUpper = k.toUpperCase().trim();
-        // Buscar columnas cuyo nombre sea exactamente OF o contenga referencias a orden de fabricación
-        if (keyUpper === 'OF' || keyUpper === 'Nº OF' || keyUpper === 'N OF' || (keyUpper.includes('ORDEN') && !keyUpper.includes('PEDIDO'))) {
-          if (row[k] !== undefined && row[k] !== '') {
-            return String(row[k]).trim();
-          }
-        }
+        let kUpper = k.toUpperCase().trim();
+        let val = String(row[k] || '').trim().toLowerCase();
+        if (kUpper.includes('CLIENTE')) cliente = val;
+        if (kUpper.includes('ESPESOR')) espesor = val;
+        if (kUpper.includes('MATERIAL') || kUpper.includes('CHAPA')) material = val;
       }
-      // Búsqueda secundaria estricta para campos que contengan OF pero nunca PEDIDO
-      for (let k in row) {
-        const keyUpper = k.toUpperCase().trim();
-        if (keyUpper.includes('OF') && !keyUpper.includes('PEDIDO')) {
-          if (row[k] !== undefined && row[k] !== '') {
-            return String(row[k]).trim();
-          }
-        }
+      
+      // Si no encuentra columnas específicas, combina todos los campos como respaldo
+      if (!cliente && !espesor && !material) {
+        return Object.values(row).map(v => String(v).trim().toLowerCase()).join('|');
       }
-      return '';
+      
+      return `${cliente}_${espesor}_${material}`;
     }
 
-    // Comprueba si una OF concreta está marcada como HECHO en una sección específica
-    function isCompletedInSection(week, sectionCode, orderVal) {
-      if (!orderVal) return false;
-      const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
-      const targetRows = weekData[sectionCode] || [];
+    // Comprueba si una fila concreta está marcada como HECHO en la sección anterior basándose en la firma
+    function isCompletedInSection(week, sectionCode, targetRow) {
+      const targetSig = getRowSignature(targetRow);
+      if (!targetSig) return false;
 
-      for (let i = 0; i < targetRows.length; i++) {
-        const val = getOrderKey(targetRows[i]);
-        if (val && val === orderVal) {
-          const key = `${week}-${sectionCode}-${i}`;
-          return !!completedRows[key];
+      const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
+      const sourceRows = weekData[sectionCode] || [];
+
+      for (let i = 0; i < sourceRows.length; i++) {
+        const key = `${week}-${sectionCode}-${i}`;
+        if (completedRows[key]) {
+          const srcSig = getRowSignature(sourceRows[i]);
+          if (srcSig && srcSig === targetSig) {
+            return true;
+          }
         }
       }
       return false;
@@ -219,18 +222,17 @@
         const key = `${currentWeek}-${currentSection}-${originalIndex}`;
         const isDone = !!completedRows[key];
 
-        const orderVal = getOrderKey(row);
-        
-        const prodDone = isCompletedInSection(currentWeek, 'PROD', orderVal);
-        const escDone = isCompletedInSection(currentWeek, 'ESC', orderVal);
+        // Comprobar cruces encadenados por Cliente, Espesor y Material
+        const prodDone = isCompletedInSection(currentWeek, 'PROD', row);
+        const escDone = isCompletedInSection(currentWeek, 'ESC', row);
 
         let rowClass = '';
         if (isDone) {
           rowClass = 'completed-row';
         } else if (currentSection === 'ESC' && prodDone) {
-          rowClass = 'highlight-green';
+          rowClass = 'highlight-green'; // Verde si el material viene hecho de Producción
         } else if (currentSection === 'LIJ' && escDone) {
-          rowClass = 'highlight-green';
+          rowClass = 'highlight-green'; // Verde si el material viene hecho de Escuadradora
         }
 
         const btnClass = isDone 

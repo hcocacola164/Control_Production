@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Display de Planta - Control de Producción</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+  <!-- Header -->
+  <header class="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center shadow-lg">
+    <div class="flex items-center space-x-3">
+      <div class="w-4 h-4 rounded-full bg-emerald-500 animate-pulse"></div>
+      <h1 class="text-xl font-bold tracking-wide uppercase">Planta de Producción</h1>
+    </div>
+    <div class="text-sm text-slate-400">
+      Última actualización: <span id="last-updated" class="font-mono text-emerald-400">Cargando...</span>
+    </div>
+  </header>
+
+  <!-- Pestañas de Navegación -->
+  <nav class="bg-slate-800/50 p-2 flex space-x-2 border-b border-slate-700">
+    <button id="btn-prod" onclick="switchTab('prod')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base">
+      📋 Órdenes de Producción
+    </button>
+    <button id="btn-lij" onclick="switchTab('lij')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
+      🪚 Lijadora
+    </button>
+    <button id="btn-esc" onclick="switchTab('esc')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
+      📐 Escuadradora
+    </button>
+  </nav>
+
+  <!-- Contenido Principal -->
+  <main class="flex-1 p-4 overflow-auto">
+    
+    <!-- Vista 1: Órdenes de Producción -->
+    <section id="view-prod" class="block">
+      <div class="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-700/80 uppercase text-xs font-bold text-slate-200">
+              <tr id="headers-prod"></tr>
+            </thead>
+            <tbody id="body-prod" class="divide-y divide-slate-700"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vista 2: Lijadora -->
+    <section id="view-lij" class="hidden">
+      <div class="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-700/80 uppercase text-xs font-bold text-slate-200">
+              <tr id="headers-lij"></tr>
+            </thead>
+            <tbody id="body-lij" class="divide-y divide-slate-700"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vista 3: Escuadradora -->
+    <section id="view-esc" class="hidden">
+      <div class="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-700/80 uppercase text-xs font-bold text-slate-200">
+              <tr id="headers-esc"></tr>
+            </thead>
+            <tbody id="body-esc" class="divide-y divide-slate-700"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT ENTRE LAS COMILLAS
+    const API_URL = "https://script.google.com/macros/s/AKfycbyJq7f4P2Qeb6lC0CurkQZTg5gVGyBJJtuVdX5A515JZeo0NnMAFEeOpggLt8ududNN/exec";
+
+    let rawData = { ordenesProduccion: [], ordenesLijadora: [], ordenesEscuadradora: [] };
+
+    async function fetchData() {
+      try {
+        const response = await fetch(API_URL);
+        rawData = await response.json();
+        document.getElementById('last-updated').innerText = rawData.lastUpdated;
+        renderTable('prod', rawData.ordenesProduccion);
+        renderTable('lij', rawData.ordenesLijadora);
+        renderTable('esc', rawData.ordenesEscuadradora);
+      } catch (error) {
+        console.error("Error al obtener datos:", error);
+        document.getElementById('last-updated').innerText = "Error de conexión";
+      }
+    }
+
+    function renderTable(type, data) {
+      const headersContainer = document.getElementById(`headers-${type}`);
+      const bodyContainer = document.getElementById(`body-${type}`);
+      
+      if (!data.length) {
+        headersContainer.innerHTML = `<th class="px-4 py-3">Aviso</th>`;
+        bodyContainer.innerHTML = `<tr><td class="px-4 py-4 text-slate-400">No hay datos en esta pestaña todavía.</td></tr>`;
+        return;
+      }
+
+      const keys = Object.keys(data[0]);
+      headersContainer.innerHTML = keys.map(k => `<th class="px-3 py-3">${k}</th>`).join('');
+
+      bodyContainer.innerHTML = data.map(row => `
+        <tr class="hover:bg-slate-700/50 transition">
+          ${keys.map(k => `<td class="px-3 py-2 border-t border-slate-700/50">${row[k] || ''}</td>`).join('')}
+        </tr>
+      `).join('');
+    }
+
+    function switchTab(tab) {
+      ['prod', 'lij', 'esc'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        document.getElementById(`btn-${t}`).className = "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base";
+      });
+
+      document.getElementById(`view-${tab}`).classList.remove('hidden');
+      document.getElementById(`btn-${tab}`).className = "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base";
+    }
+
+    fetchData();
+    setInterval(fetchData, 30000);
+  </script>
+</body>
+</html>

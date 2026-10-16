@@ -15,15 +15,15 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
-  <!-- Header con Logo y Selector de Semana -->
+  <!-- Header con Logo, Selector de Semana y Botón Kiosco -->
   <header class="bg-slate-800 border-b border-slate-700 p-4 flex flex-wrap justify-between items-center gap-3 shadow-lg">
     <div class="flex items-center space-x-3">
-      <img src="logo.png" alt="Logo Empresa" class="h-10 w-auto max-w-[120px] object-contain bg-white/5 rounded px-2 py-1" onerror="this.style.display='none'">
+      <img src="logo.png.JPG" alt="Logo Empresa" class="h-10 w-auto max-w-[120px] object-contain bg-white/5 rounded px-2 py-1" onerror="this.style.display='none'">
       <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-      <h1 class="text-lg md:text-xl font-bold tracking-wide uppercase">Mabesal Spanish Plywood</h1>
+      <h1 class="text-lg md:text-xl font-bold tracking-wide uppercase">Mabesal</h1>
     </div>
 
-    <div class="flex items-center space-x-4">
+    <div class="flex items-center space-x-3">
       <!-- Selector de Semana -->
       <div class="flex items-center space-x-2 bg-slate-700/60 px-3 py-1.5 rounded-lg border border-slate-600">
         <label for="week-select" class="text-xs font-bold uppercase text-slate-300">Semana:</label>
@@ -31,6 +31,12 @@
           <option value="">Cargando...</option>
         </select>
       </div>
+
+      <!-- Botón Modo Kiosco / Pantalla Completa -->
+      <button onclick="toggleFullscreen()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 font-bold text-xs flex items-center space-x-1 transition" title="Pantalla completa">
+        <span>⛶</span>
+        <span class="hidden md:inline">Kiosco</span>
+      </button>
 
       <div class="text-xs md:text-sm text-slate-400 text-right">
         Última actualización: <span id="last-updated" class="font-mono text-emerald-400">Cargando...</span>
@@ -78,7 +84,7 @@
 
   <script>
     // PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT
-    const API_URL = "https://script.google.com/macros/s/AKfycbyJq7f4P2Qeb6lC0CurkQZTg5gVGyBJJtuVdX5A515JZeo0NnMAFEeOpggLt8ududNN/exec"; 
+    const API_URL = "https://script.google.com/macros/s/AKfycbx/exec"; 
 
     let fullData = { weeks: [], data: {} };
     let currentWeek = "";
@@ -107,7 +113,7 @@
       }
 
       if (!currentWeek || !fullData.weeks.includes(currentWeek)) {
-        currentWeek = fullData.weeks[fullData.weeks.length - 1]; // Selecciona la última semana por defecto
+        currentWeek = fullData.weeks[fullData.weeks.length - 1];
       }
 
       select.innerHTML = fullData.weeks.map(w => 
@@ -172,7 +178,7 @@
         const btnClass = isDone 
           ? "bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-emerald-500 transition" 
           : "bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-600 transition border border-slate-600";
-        const btnText = isDone ? "✓ HECHO" : "~";
+        const btnText = isDone ? "✓ HECHO" : "••";
 
         return `
           <tr id="row-${originalIndex}" class="hover:bg-slate-700/50 transition ${rowClass}">
@@ -202,6 +208,19 @@
       const counter = document.getElementById('progress-counter');
       const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
       counter.innerHTML = `Progreso: <span class="text-emerald-400 font-bold">${completed} / ${total} (${percent}%)</span>`;
+    }
+
+    // Función para activar / desactivar Modo Kiosco (Pantalla completa)
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.log(`Error al intentar pantalla completa: ${err.message}`);
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
     }
 
     fetchData();

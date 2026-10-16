@@ -143,41 +143,56 @@
       renderCurrentTable();
     }
 
-    // Crea una firma única combinando Cliente, Espesor y Material de la fila
-    function getRowSignature(row) {
-      let cliente = '';
-      let espesor = '';
-      let material = '';
-      
+    // Extrae las palabras clave significativas de una fila (cliente, espesor, material)
+    // ignorando columnas de control como pedidos, OF, días o turnos.
+    function getSignificantTokens(row) {
+      let tokens = new Set();
       for (let k in row) {
         let kUpper = k.toUpperCase().trim();
         let val = String(row[k] || '').trim().toLowerCase();
-        if (kUpper.includes('CLIENTE')) cliente = val;
-        if (kUpper.includes('ESPESOR')) espesor = val;
-        if (kUpper.includes('MATERIAL') || kUpper.includes('CHAPA')) material = val;
+        
+        if (kUpper.includes('OF') || kUpper.includes('PEDIDO') || kUpper.includes('ORDEN') || kUpper.includes('DIA') || kUpper.includes('TURNO')) {
+          continue;
+        }
+        
+        if (val) {
+          val.split(/[\s\/\-\,\._]+/).forEach(t => {
+            if (t.trim().length > 0) {
+              tokens.add(t.trim());
+            }
+          });
+        }
       }
-      
-      // Si no encuentra columnas específicas, combina todos los campos como respaldo
-      if (!cliente && !espesor && !material) {
-        return Object.values(row).map(v => String(v).trim().toLowerCase()).join('|');
-      }
-      
-      return `${cliente}_${espesor}_${material}`;
+      return tokens;
     }
 
-    // Comprueba si una fila concreta está marcada como HECHO en la sección anterior basándose en la firma
-    function isCompletedInSection(week, sectionCode, targetRow) {
-      const targetSig = getRowSignature(targetRow);
-      if (!targetSig) return false;
+    // Comprueba si dos filas coinciden en su contenido (independientemente de si las columnas están separadas o juntas)
+    function rowsMatch(sourceRow, targetRow) {
+      let srcTokens = getSignificantTokens(sourceRow);
+      let tgtTokens = getSignificantTokens(targetRow);
 
+      if (srcTokens.size === 0 || tgtTokens.size === 0) return false;
+
+      let matchCount = 0;
+      srcTokens.forEach(t => {
+        if (tgtTokens.has(t)) {
+          matchCount++;
+        }
+      });
+
+      // Si hay una alta coincidencia de palabras clave (Cliente + Espesor + Material)
+      return (matchCount / srcTokens.size) >= 0.75;
+    }
+
+    // Comprueba si una fila está marcada como HECHO en la sección anterior
+    function isCompletedInSection(week, sectionCode, targetRow) {
       const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
       const sourceRows = weekData[sectionCode] || [];
 
       for (let i = 0; i < sourceRows.length; i++) {
         const key = `${week}-${sectionCode}-${i}`;
         if (completedRows[key]) {
-          const srcSig = getRowSignature(sourceRows[i]);
-          if (srcSig && srcSig === targetSig) {
+          if (rowsMatch(sourceRows[i], targetRow)) {
             return true;
           }
         }
@@ -222,7 +237,7 @@
         const key = `${currentWeek}-${currentSection}-${originalIndex}`;
         const isDone = !!completedRows[key];
 
-        // Comprobar cruces encadenados por Cliente, Espesor y Material
+        // Verificaciones inteligentes de cruce entre secciones
         const prodDone = isCompletedInSection(currentWeek, 'PROD', row);
         const escDone = isCompletedInSection(currentWeek, 'ESC', row);
 
@@ -230,9 +245,9 @@
         if (isDone) {
           rowClass = 'completed-row';
         } else if (currentSection === 'ESC' && prodDone) {
-          rowClass = 'highlight-green'; // Verde si el material viene hecho de Producción
+          rowClass = 'highlight-green'; // Verde si viene hecho de Producción
         } else if (currentSection === 'LIJ' && escDone) {
-          rowClass = 'highlight-green'; // Verde si el material viene hecho de Escuadradora
+          rowClass = 'highlight-green'; // Verde si viene hecho de Escuadradora
         }
 
         const btnClass = isDone 

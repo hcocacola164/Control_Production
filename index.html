@@ -5,8 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Display de Planta - Control de Producción</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .completed-row {
+      background-color: rgba(16, 185, 129, 0.15) !important;
+      opacity: 0.6;
+      text-decoration: line-through;
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
   <!-- Header -->
   <header class="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center shadow-lg">
@@ -81,9 +88,10 @@
 
   <script>
     // PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT ENTRE LAS COMILLAS
-    const API_URL = "https://script.google.com/macros/s/AKfycbyJq7f4P2Qeb6lC0CurkQZTg5gVGyBJJtuVdX5A515JZeo0NnMAFEeOpggLt8ududNN/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbyJq7f4P2Qeb6lC0CurkQZTg5gVGyBJJtuVdX5A515JZeo0NnMAFEeOpggLt8ududNN/exec"; 
 
     let rawData = { ordenesProduccion: [], ordenesLijadora: [], ordenesEscuadradora: [] };
+    let completedRows = JSON.parse(localStorage.getItem('completedRows') || '{}');
 
     async function fetchData() {
       try {
@@ -99,24 +107,58 @@
       }
     }
 
+    function toggleComplete(type, index) {
+      const key = `${type}-${index}`;
+      completedRows[key] = !completedRows[key];
+      localStorage.setItem('completedRows', JSON.stringify(completedRows));
+      
+      const rowElem = document.getElementById(`row-${type}-${index}`);
+      const btnElem = document.getElementById(`btn-check-${type}-${index}`);
+      
+      if (completedRows[key]) {
+        rowElem.classList.add('completed-row');
+        btnElem.className = "bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-emerald-500 transition";
+        btnElem.innerText = "✓ HECHO";
+      } else {
+        rowElem.classList.remove('completed-row');
+        btnElem.className = "bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-600 transition border border-slate-600";
+        btnElem.innerText = "MARCAR";
+      }
+    }
+
     function renderTable(type, data) {
       const headersContainer = document.getElementById(`headers-${type}`);
       const bodyContainer = document.getElementById(`body-${type}`);
       
-      if (!data.length) {
+      if (!data || !data.length) {
         headersContainer.innerHTML = `<th class="px-4 py-3">Aviso</th>`;
         bodyContainer.innerHTML = `<tr><td class="px-4 py-4 text-slate-400">No hay datos en esta pestaña todavía.</td></tr>`;
         return;
       }
 
       const keys = Object.keys(data[0]);
-      headersContainer.innerHTML = keys.map(k => `<th class="px-3 py-3">${k}</th>`).join('');
+      headersContainer.innerHTML = `<th class="px-3 py-3 text-center">ESTADO</th>` + keys.map(k => `<th class="px-3 py-3">${k}</th>`).join('');
 
-      bodyContainer.innerHTML = data.map(row => `
-        <tr class="hover:bg-slate-700/50 transition">
-          ${keys.map(k => `<td class="px-3 py-2 border-t border-slate-700/50">${row[k] || ''}</td>`).join('')}
-        </tr>
-      `).join('');
+      bodyContainer.innerHTML = data.map((row, idx) => {
+        const key = `${type}-${idx}`;
+        const isDone = !!completedRows[key];
+        const rowClass = isDone ? 'completed-row' : '';
+        const btnClass = isDone 
+          ? "bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-emerald-500 transition" 
+          : "bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-600 transition border border-slate-600";
+        const btnText = isDone ? "✓ HECHO" : "MARCAR";
+
+        return `
+          <tr id="row-${type}-${idx}" class="hover:bg-slate-700/50 transition ${rowClass}">
+            <td class="px-3 py-2 text-center whitespace-nowrap">
+              <button id="btn-check-${type}-${idx}" onclick="toggleComplete('${type}', ${idx})" class="${btnClass}">
+                ${btnText}
+              </button>
+            </td>
+            ${keys.map(k => `<td class="px-3 py-2 border-t border-slate-700/50 whitespace-nowrap">${row[k] || ''}</td>`).join('')}
+          </tr>
+        `;
+      }).join('');
     }
 
     function switchTab(tab) {
@@ -134,3 +176,4 @@
   </script>
 </body>
 </html>
+p

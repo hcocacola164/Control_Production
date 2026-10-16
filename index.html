@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Display de MABESAL </title>
+  <title>Display de Planta - Control de Producción</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .completed-row {
@@ -15,146 +15,169 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
-  <!-- Header con Logo -->
-  <header class="bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center shadow-lg">
+  <!-- Header con Logo y Selector de Semana -->
+  <header class="bg-slate-800 border-b border-slate-700 p-4 flex flex-wrap justify-between items-center gap-3 shadow-lg">
     <div class="flex items-center space-x-3">
-      <!-- LOGO DE LA EMPRESA (Busca un archivo llamado logo.png en tu repositorio) -->
-      <img src="logo.png.JPG" alt="Logo Empresa" class="h-10 w-auto max-w-[120px] object-contain bg-white/5 rounded px-2 py-1" onerror="this.style.display='none'">
-      
+      <img src="logo.png" alt="Logo Empresa" class="h-10 w-auto max-w-[120px] object-contain bg-white/5 rounded px-2 py-1" onerror="this.style.display='none'">
       <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-      <h1 class="text-lg md:text-xl font-bold tracking-wide uppercase">MABESAL</h1>
+      <h1 class="text-lg md:text-xl font-bold tracking-wide uppercase">Mabesal Spanish Plywood</h1>
     </div>
-    <div class="text-xs md:text-sm text-slate-400 text-right">
-      Última actualización: <span id="last-updated" class="font-mono text-emerald-400">Cargando...</span>
+
+    <div class="flex items-center space-x-4">
+      <!-- Selector de Semana -->
+      <div class="flex items-center space-x-2 bg-slate-700/60 px-3 py-1.5 rounded-lg border border-slate-600">
+        <label for="week-select" class="text-xs font-bold uppercase text-slate-300">Semana:</label>
+        <select id="week-select" onchange="changeWeek()" class="bg-slate-800 text-emerald-400 font-bold text-sm rounded px-2 py-1 outline-none border border-slate-600 cursor-pointer">
+          <option value="">Cargando...</option>
+        </select>
+      </div>
+
+      <div class="text-xs md:text-sm text-slate-400 text-right">
+        Última actualización: <span id="last-updated" class="font-mono text-emerald-400">Cargando...</span>
+      </div>
     </div>
   </header>
 
-  <!-- Pestañas de Navegación -->
+  <!-- Pestañas de Máquinas / Secciones -->
   <nav class="bg-slate-800/50 p-2 flex space-x-2 border-b border-slate-700">
-    <button id="btn-prod" onclick="switchTab('prod')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base">
+    <button id="btn-prod" onclick="switchTab('PROD')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base">
       📋 Órdenes de Producción
     </button>
-    <button id="btn-lij" onclick="switchTab('lij')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
+    <button id="btn-lij" onclick="switchTab('LIJ')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
       🪚 Lijadora
     </button>
-    <button id="btn-esc" onclick="switchTab('esc')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
+    <button id="btn-esc" onclick="switchTab('ESC')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
       📐 Escuadradora
     </button>
   </nav>
 
-  <!-- Contenido Principal -->
+  <!-- Barra de Filtro y Progreso -->
+  <div class="bg-slate-800/80 px-4 py-3 flex flex-wrap justify-between items-center gap-3 border-b border-slate-700">
+    <div class="flex items-center space-x-2 w-full sm:w-auto flex-1 max-w-md">
+      <span class="text-slate-400">🔍</span>
+      <input type="text" id="search-input" oninput="filterTable()" placeholder="Buscar por OF, cliente, chapa..." class="w-full bg-slate-900 text-slate-200 text-sm rounded-lg px-3 py-2 border border-slate-700 outline-none focus:border-blue-500">
+    </div>
+    <div id="progress-counter" class="text-xs md:text-sm font-semibold text-slate-300 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700/50">
+      Progreso: <span class="text-emerald-400 font-bold">0 / 0 (0%)</span>
+    </div>
+  </div>
+
+  <!-- Contenido de Tablas -->
   <main class="flex-1 p-4 overflow-auto">
-    
-    <!-- Vista 1: Órdenes de Producción -->
-    <section id="view-prod" class="block">
-      <div class="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-300">
-            <thead class="bg-slate-700/80 uppercase text-xs font-bold text-slate-200">
-              <tr id="headers-prod"></tr>
-            </thead>
-            <tbody id="body-prod" class="divide-y divide-slate-700"></tbody>
-          </table>
-        </div>
+    <div class="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-700/80 uppercase text-xs font-bold text-slate-200">
+            <tr id="table-headers"></tr>
+          </thead>
+          <tbody id="table-body" class="divide-y divide-slate-700"></tbody>
+        </table>
       </div>
-    </section>
-
-    <!-- Vista 2: Lijadora -->
-    <section id="view-lij" class="hidden">
-      <div class="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-300">
-            <thead class="bg-slate-700/80 uppercase text-xs font-bold text-slate-200">
-              <tr id="headers-lij"></tr>
-            </thead>
-            <tbody id="body-lij" class="divide-y divide-slate-700"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Vista 3: Escuadradora -->
-    <section id="view-esc" class="hidden">
-      <div class="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-300">
-            <thead class="bg-slate-700/80 uppercase text-xs font-bold text-slate-200">
-              <tr id="headers-esc"></tr>
-            </thead>
-            <tbody id="body-esc" class="divide-y divide-slate-700"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
+    </div>
   </main>
 
   <script>
     // PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT
     const API_URL = "https://script.google.com/macros/s/AKfycbyJq7f4P2Qeb6lC0CurkQZTg5gVGyBJJtuVdX5A515JZeo0NnMAFEeOpggLt8ududNN/exec"; 
 
-    let rawData = { ordenesProduccion: [], ordenesLijadora: [], ordenesEscuadradora: [] };
+    let fullData = { weeks: [], data: {} };
+    let currentWeek = "";
+    let currentSection = "PROD";
     let completedRows = JSON.parse(localStorage.getItem('completedRows') || '{}');
 
     async function fetchData() {
       try {
         const response = await fetch(API_URL);
-        rawData = await response.json();
-        document.getElementById('last-updated').innerText = rawData.lastUpdated;
-        renderTable('prod', rawData.ordenesProduccion);
-        renderTable('lij', rawData.ordenesLijadora);
-        renderTable('esc', rawData.ordenesEscuadradora);
+        fullData = await response.json();
+        document.getElementById('last-updated').innerText = fullData.lastUpdated;
+
+        updateWeekSelector();
+        renderCurrentTable();
       } catch (error) {
         console.error("Error al obtener datos:", error);
         document.getElementById('last-updated').innerText = "Error de conexión";
       }
     }
 
-    function toggleComplete(type, index) {
-      const key = `${type}-${index}`;
-      completedRows[key] = !completedRows[key];
-      localStorage.setItem('completedRows', JSON.stringify(completedRows));
-      
-      const rowElem = document.getElementById(`row-${type}-${index}`);
-      const btnElem = document.getElementById(`btn-check-${type}-${index}`);
-      
-      if (completedRows[key]) {
-        rowElem.classList.add('completed-row');
-        btnElem.className = "bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-emerald-500 transition";
-        btnElem.innerText = "✓ HECHO";
-      } else {
-        rowElem.classList.remove('completed-row');
-        btnElem.className = "bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-600 transition border border-slate-600";
-        btnElem.innerText = "En Proceso";
-      }
-    }
-
-    function renderTable(type, data) {
-      const headersContainer = document.getElementById(`headers-${type}`);
-      const bodyContainer = document.getElementById(`body-${type}`);
-      
-      if (!data || !data.length) {
-        headersContainer.innerHTML = `<th class="px-4 py-3">Aviso</th>`;
-        bodyContainer.innerHTML = `<tr><td class="px-4 py-4 text-slate-400">No hay datos en esta pestaña todavía.</td></tr>`;
+    function updateWeekSelector() {
+      const select = document.getElementById('week-select');
+      if (!fullData.weeks || fullData.weeks.length === 0) {
+        select.innerHTML = `<option value="">Sin datos</option>`;
         return;
       }
 
-      const keys = Object.keys(data[0]);
+      if (!currentWeek || !fullData.weeks.includes(currentWeek)) {
+        currentWeek = fullData.weeks[fullData.weeks.length - 1]; // Selecciona la última semana por defecto
+      }
+
+      select.innerHTML = fullData.weeks.map(w => 
+        `<option value="${w}" ${w === currentWeek ? 'selected' : ''}>${w}</option>`
+      ).join('');
+    }
+
+    function changeWeek() {
+      currentWeek = document.getElementById('week-select').value;
+      renderCurrentTable();
+    }
+
+    function switchTab(section) {
+      currentSection = section;
+      
+      const btnMap = { 'PROD': 'btn-prod', 'LIJ': 'btn-lij', 'ESC': 'btn-esc' };
+      Object.keys(btnMap).forEach(sec => {
+        document.getElementById(btnMap[sec]).className = "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base";
+      });
+
+      document.getElementById(btnMap[section]).className = "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base";
+      renderCurrentTable();
+    }
+
+    function renderCurrentTable() {
+      const headersContainer = document.getElementById('table-headers');
+      const bodyContainer = document.getElementById('table-body');
+      const query = document.getElementById('search-input').value.toLowerCase();
+
+      const weekData = fullData.data && fullData.data[currentWeek] ? fullData.data[currentWeek] : {};
+      const rows = weekData[currentSection] || [];
+
+      if (!rows.length) {
+        headersContainer.innerHTML = `<th class="px-4 py-3">Aviso</th>`;
+        bodyContainer.innerHTML = `<tr><td class="px-4 py-4 text-slate-400">No hay datos para la semana ${currentWeek} en esta sección.</td></tr>`;
+        updateProgress(0, 0);
+        return;
+      }
+
+      const keys = Object.keys(rows[0]);
       headersContainer.innerHTML = `<th class="px-3 py-3 text-center">ESTADO</th>` + keys.map(k => `<th class="px-3 py-3">${k}</th>`).join('');
 
-      bodyContainer.innerHTML = data.map((row, idx) => {
-        const key = `${type}-${idx}`;
+      let completedCount = 0;
+
+      const filteredRows = rows.filter(row => {
+        if (!query) return true;
+        return Object.values(row).some(val => String(val).toLowerCase().includes(query));
+      });
+
+      rows.forEach((row, idx) => {
+        const key = `${currentWeek}-${currentSection}-${idx}`;
+        if (completedRows[key]) completedCount++;
+      });
+
+      updateProgress(completedCount, rows.length);
+
+      bodyContainer.innerHTML = filteredRows.map((row, idx) => {
+        const originalIndex = rows.indexOf(row);
+        const key = `${currentWeek}-${currentSection}-${originalIndex}`;
         const isDone = !!completedRows[key];
         const rowClass = isDone ? 'completed-row' : '';
         const btnClass = isDone 
           ? "bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-emerald-500 transition" 
           : "bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-600 transition border border-slate-600";
-        const btnText = isDone ? "✓ HECHO" : "En Proceso";
+        const btnText = isDone ? "✓ HECHO" : "~";
 
         return `
-          <tr id="row-${type}-${idx}" class="hover:bg-slate-700/50 transition ${rowClass}">
+          <tr id="row-${originalIndex}" class="hover:bg-slate-700/50 transition ${rowClass}">
             <td class="px-3 py-2 text-center whitespace-nowrap">
-              <button id="btn-check-${type}-${idx}" onclick="toggleComplete('${type}', ${idx})" class="${btnClass}">
+              <button onclick="toggleComplete(${originalIndex})" class="${btnClass}">
                 ${btnText}
               </button>
             </td>
@@ -164,14 +187,21 @@
       }).join('');
     }
 
-    function switchTab(tab) {
-      ['prod', 'lij', 'esc'].forEach(t => {
-        document.getElementById(`view-${t}`).classList.add('hidden');
-        document.getElementById(`btn-${t}`).className = "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base";
-      });
+    function toggleComplete(index) {
+      const key = `${currentWeek}-${currentSection}-${index}`;
+      completedRows[key] = !completedRows[key];
+      localStorage.setItem('completedRows', JSON.stringify(completedRows));
+      renderCurrentTable();
+    }
 
-      document.getElementById(`view-${tab}`).classList.remove('hidden');
-      document.getElementById(`btn-${tab}`).className = "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base";
+    function filterTable() {
+      renderCurrentTable();
+    }
+
+    function updateProgress(completed, total) {
+      const counter = document.getElementById('progress-counter');
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+      counter.innerHTML = `Progreso: <span class="text-emerald-400 font-bold">${completed} / ${total} (${percent}%)</span>`;
     }
 
     fetchData();

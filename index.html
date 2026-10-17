@@ -6,13 +6,11 @@
   <title>Display de Planta - Control de Producción</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Fila completada manualmente */
     .completed-row {
       background-color: rgba(16, 185, 129, 0.15) !important;
       opacity: 0.6;
       text-decoration: line-through;
     }
-    /* Resaltado estilo marcador verde fosforito */
     .highlight-green {
       background-color: rgba(34, 197, 94, 0.25) !important;
       border-left: 4px solid #22c55e !important;
@@ -50,10 +48,10 @@
     </div>
   </header>
 
-  <!-- Pestañas de Máquinas / Secciones -->
-  <nav class="bg-slate-800/50 p-2 flex space-x-2 border-b border-slate-700">
+  <!-- Pestañas de Máquinas / Secciones y Mantenimiento -->
+  <nav class="bg-slate-800/50 p-2 flex flex-wrap space-x-2 border-b border-slate-700 gap-2">
     <button id="btn-prod" onclick="switchTab('PROD')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base">
-      📋 Órdenes de Producción
+      📋 Producción
     </button>
     <button id="btn-esc" onclick="switchTab('ESC')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
       📐 Escuadradora
@@ -61,20 +59,32 @@
     <button id="btn-lij" onclick="switchTab('LIJ')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
       🪚 Lijadora
     </button>
+    <button id="btn-mant" onclick="switchTab('MANT')" class="py-3 px-4 rounded-lg font-semibold text-center transition bg-amber-600 text-white shadow-md text-sm md:text-base flex items-center space-x-1">
+      <span>🔧 Mantenimiento</span>
+      <span id="mant-badge" class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold hidden">0</span>
+    </button>
   </nav>
 
-  <!-- Barra de Filtro y Progreso -->
-  <div class="bg-slate-800/80 px-4 py-3 flex flex-wrap justify-between items-center gap-3 border-b border-slate-700">
+  <!-- Barra de Filtro, Progreso y Botón de Alerta -->
+  <div id="controls-bar" class="bg-slate-800/80 px-4 py-3 flex flex-wrap justify-between items-center gap-3 border-b border-slate-700">
     <div class="flex items-center space-x-2 w-full sm:w-auto flex-1 max-w-md">
       <span class="text-slate-400">🔍</span>
       <input type="text" id="search-input" oninput="filterTable()" placeholder="Buscar por OF, cliente, chapa..." class="w-full bg-slate-900 text-slate-200 text-sm rounded-lg px-3 py-2 border border-slate-700 outline-none focus:border-blue-500">
     </div>
-    <div id="progress-counter" class="text-xs md:text-sm font-semibold text-slate-300 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700/50">
-      Progreso: <span class="text-emerald-400 font-bold">0 / 0 (0%)</span>
+    
+    <div class="flex items-center space-x-3">
+      <!-- Botón para abrir aviso a mantenimiento desde las máquinas -->
+      <button onclick="openAlertModal()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-xs flex items-center space-x-1 shadow transition animate-pulse">
+        <span>🚨</span>
+        <span>Avisar Mantenimiento</span>
+      </button>
+      <div id="progress-counter" class="text-xs md:text-sm font-semibold text-slate-300 bg-slate-900/60 px-3 py-2 rounded-lg border border-slate-700/50">
+        Progreso: <span class="text-emerald-400 font-bold">0 / 0 (0%)</span>
+      </div>
     </div>
   </div>
 
-  <!-- Contenido de Tablas -->
+  <!-- Contenido de Tablas / Mantenimiento -->
   <main class="flex-1 p-4 overflow-auto">
     <div class="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700">
       <div class="overflow-x-auto">
@@ -88,10 +98,29 @@
     </div>
   </main>
 
+  <!-- Modal para escribir incidencia a Mantenimiento -->
+  <div id="alert-modal" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+      <h3 class="text-lg font-bold text-red-400 mb-2 flex items-center space-x-2">
+        <span>🚨</span>
+        <span>Aviso a Mantenimiento</span>
+      </h3>
+      <p class="text-xs text-slate-400 mb-4">Se enviará una alerta en tiempo real a la pantalla del taller de mantenimiento.</p>
+      
+      <label class="block text-xs font-bold uppercase text-slate-300 mb-1">¿Qué incidencia hay?</label>
+      <textarea id="alert-message" rows="4" placeholder="Ej: Atasco en rodillos principales, ruido extraño en motor..." class="w-full bg-slate-900 text-slate-100 text-sm rounded-lg p-3 border border-slate-700 outline-none focus:border-red-500 resize-none mb-4"></textarea>
+
+      <div class="flex space-x-3">
+        <button onclick="closeAlertModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold py-2.5 rounded-lg transition text-sm">Cancelar</button>
+        <button onclick="sendMaintenanceAlert()" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 rounded-lg transition text-sm shadow">Enviar Alerta</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbyJq7f4P2Qeb6lC0CurkQZTg5gVGyBJJtuVdX5A515JZeo0NnMAFEeOpggLt8ududNN/exec"; 
 
-    let fullData = { weeks: [], data: {} };
+    let fullData = { weeks: [], data: {}, alerts: [] };
     let currentWeek = "";
     let currentSection = "PROD";
     let completedRows = JSON.parse(localStorage.getItem('completedRows') || '{}');
@@ -103,6 +132,7 @@
         document.getElementById('last-updated').innerText = fullData.lastUpdated;
 
         updateWeekSelector();
+        updateMaintenanceBadge();
         renderCurrentTable();
       } catch (error) {
         console.error("Error al obtener datos:", error);
@@ -126,78 +156,112 @@
       ).join('');
     }
 
+    function updateMaintenanceBadge() {
+      const alerts = fullData.alerts || [];
+      const pendingCount = alerts.filter(a => String(a.Estado || a.ESTADO || '').toUpperCase() === 'PENDIENTE').length;
+      const badge = document.getElementById('mant-badge');
+      if (pendingCount > 0) {
+        badge.innerText = pendingCount;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
     function changeWeek() {
       currentWeek = document.getElementById('week-select').value;
-      renderCurrentTable();
+      if (currentSection === 'MANT') renderCurrentTable();
+      else renderCurrentTable();
     }
 
     function switchTab(section) {
       currentSection = section;
       
-      const btnMap = { 'PROD': 'btn-prod', 'ESC': 'btn-esc', 'LIJ': 'btn-lij' };
+      const btnMap = { 'PROD': 'btn-prod', 'ESC': 'btn-esc', 'LIJ': 'btn-lij', 'MANT': 'btn-mant' };
       Object.keys(btnMap).forEach(sec => {
-        document.getElementById(btnMap[sec]).className = "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base";
+        const btn = document.getElementById(btnMap[sec]);
+        if (sec === 'MANT') {
+          btn.className = sec === section 
+            ? "py-3 px-4 rounded-lg font-semibold text-center transition bg-amber-600 text-white shadow-md text-sm md:text-base flex items-center space-x-1 ring-2 ring-white/30" 
+            : "py-3 px-4 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base flex items-center space-x-1";
+        } else {
+          btn.className = sec === section 
+            ? "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base" 
+            : "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base";
+        }
       });
 
-      document.getElementById(btnMap[section]).className = "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base";
+      // Ocultar buscador y progreso si está en la pestaña de Mantenimiento
+      const controlsBar = document.getElementById('controls-bar');
+      if (section === 'MANT') {
+        controlsBar.style.display = 'none';
+      } else {
+        controlsBar.style.display = 'flex';
+      }
+
       renderCurrentTable();
     }
 
-    // Extrae las palabras clave significativas de una fila (cliente, espesor, material)
-    // ignorando columnas de control como pedidos, OF, días o turnos.
-    function getSignificantTokens(row) {
-      let tokens = new Set();
-      for (let k in row) {
-        let kUpper = k.toUpperCase().trim();
-        let val = String(row[k] || '').trim().toLowerCase();
-        
-        if (kUpper.includes('OF') || kUpper.includes('PEDIDO') || kUpper.includes('ORDEN') || kUpper.includes('DIA') || kUpper.includes('TURNO')) {
-          continue;
-        }
-        
-        if (val) {
-          val.split(/[\s\/\-\,\._]+/).forEach(t => {
-            if (t.trim().length > 0) {
-              tokens.add(t.trim());
-            }
-          });
-        }
-      }
-      return tokens;
+    function openAlertModal() {
+      document.getElementById('alert-modal').classList.remove('hidden');
+      document.getElementById('alert-message').value = '';
     }
 
-    // Comprueba si dos filas coinciden en su contenido (independientemente de si las columnas están separadas o juntas)
-    function rowsMatch(sourceRow, targetRow) {
-      let srcTokens = getSignificantTokens(sourceRow);
-      let tgtTokens = getSignificantTokens(targetRow);
-
-      if (srcTokens.size === 0 || tgtTokens.size === 0) return false;
-
-      let matchCount = 0;
-      srcTokens.forEach(t => {
-        if (tgtTokens.has(t)) {
-          matchCount++;
-        }
-      });
-
-      // Si hay una alta coincidencia de palabras clave (Cliente + Espesor + Material)
-      return (matchCount / srcTokens.size) >= 0.75;
+    function closeAlertModal() {
+      document.getElementById('alert-modal').classList.add('hidden');
     }
 
-    // Comprueba si una fila está marcada como HECHO en la sección anterior
-    function isCompletedInSection(week, sectionCode, targetRow) {
-      const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
-      const sourceRows = weekData[sectionCode] || [];
-
-      for (let i = 0; i < sourceRows.length; i++) {
-        const key = `${week}-${sectionCode}-${i}`;
-        if (completedRows[key]) {
-          if (rowsMatch(sourceRows[i], targetRow)) {
-            return true;
-          }
-        }
+    async function sendMaintenanceAlert() {
+      const msg = document.getElementById('alert-message').value.trim();
+      if (!msg) {
+        alert("Por favor, escribe brevemente la incidencia.");
+        return;
       }
-      return false;
+
+      const sectionNames = { 'PROD': 'Órdenes de Producción', 'ESC': 'Escuadradora', 'LIJ': 'Lijadora' };
+      const sectionName = sectionNames[currentSection] || currentSection;
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'addAlert',
+            week: currentWeek || 'S30',
+            section: sectionName,
+            message: msg
+          })
+        });
+
+        closeAlertModal();
+        alert("¡Alerta enviada a mantenimiento correctamente!");
+        setTimeout(fetchData, 1500); // Recargar datos tras un instante
+      } catch (err) {
+        console.error(err);
+        alert("Error al enviar la alerta.");
+      }
+    }
+
+    async function resolveMaintenanceAlert(message) {
+      if (!confirm("¿Marcar esta incidencia como solucionada?")) return;
+
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'resolveAlert',
+            message: message
+          })
+        });
+
+        setTimeout(fetchData, 1500);
+      } catch (err) {
+        console.error(err);
+        alert("Error al actualizar la incidencia.");
+      }
     }
 
     function renderCurrentTable() {
@@ -205,6 +269,47 @@
       const bodyContainer = document.getElementById('table-body');
       const query = document.getElementById('search-input').value.toLowerCase();
 
+      // Vista de Mantenimiento
+      if (currentSection === 'MANT') {
+        const alerts = fullData.alerts || [];
+        headersContainer.innerHTML = `<th class="px-3 py-3 text-center">ACCIÓN</th><th class="px-3 py-3">FECHA/HORA</th><th class="px-3 py-3">SEMANA</th><th class="px-3 py-3">SECCIÓN / MÁQUINA</th><th class="px-3 py-3">INCIDENCIA</th><th class="px-3 py-3 text-center">ESTADO</th>`;
+        
+        if (!alerts.length) {
+          bodyContainer.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">No hay avisos de mantenimiento registrados.</td></tr>`;
+          return;
+        }
+
+        bodyContainer.innerHTML = alerts.map((alertItem) => {
+          const fecha = alertItem['Fecha/Hora'] || alertItem['FECHA/HORA'] || '';
+          const semana = alertItem['Semana'] || alertItem['SEMANA'] || '';
+          const seccion = alertItem['Sección'] || alertItem['SECCIÓN'] || '';
+          const msg = alertItem['Incidencia'] || alertItem['INCIDENCIA'] || '';
+          const estado = String(alertItem['Estado'] || alertItem['ESTADO'] || '').toUpperCase();
+          const isPending = estado === 'PENDIENTE';
+
+          const rowClass = isPending ? 'bg-red-950/20 border-l-4 border-red-500' : 'opacity-50';
+          const btnHtml = isPending 
+            ? `<button onclick="resolveMaintenanceAlert('${msg}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold shadow">✓ SOLUCIONAR</button>`
+            : `<span class="text-xs text-emerald-400 font-bold">RESUELTO</span>`;
+          const estadoBadge = isPending 
+            ? `<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full text-xs font-bold border border-red-500/30">PENDIENTE</span>`
+            : `<span class="bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full text-xs font-bold border border-emerald-500/30">RESUELTO</span>`;
+
+          return `
+            <tr class="hover:bg-slate-700/50 transition ${rowClass}">
+              <td class="px-3 py-3 text-center whitespace-nowrap">${btnHtml}</td>
+              <td class="px-3 py-3 whitespace-nowrap text-slate-300 font-mono text-xs">${fecha}</td>
+              <td class="px-3 py-3 whitespace-nowrap text-emerald-400 font-bold">${semana}</td>
+              <td class="px-3 py-3 whitespace-nowrap font-semibold text-slate-200">${seccion}</td>
+              <td class="px-3 py-3 text-slate-100 font-medium">${msg}</td>
+              <td class="px-3 py-3 text-center whitespace-nowrap">${estadoBadge}</td>
+            </tr>
+          `;
+        }).join('');
+        return;
+      }
+
+      // Vistas de Máquinas (Producción, Escuadradora, Lijadora)
       const weekData = fullData.data && fullData.data[currentWeek] ? fullData.data[currentWeek] : {};
       const rows = weekData[currentSection] || [];
 
@@ -237,7 +342,6 @@
         const key = `${currentWeek}-${currentSection}-${originalIndex}`;
         const isDone = !!completedRows[key];
 
-        // Verificaciones inteligentes de cruce entre secciones
         const prodDone = isCompletedInSection(currentWeek, 'PROD', row);
         const escDone = isCompletedInSection(currentWeek, 'ESC', row);
 
@@ -245,9 +349,9 @@
         if (isDone) {
           rowClass = 'completed-row';
         } else if (currentSection === 'ESC' && prodDone) {
-          rowClass = 'highlight-green'; // Verde si viene hecho de Producción
+          rowClass = 'highlight-green';
         } else if (currentSection === 'LIJ' && escDone) {
-          rowClass = 'highlight-green'; // Verde si viene hecho de Escuadradora
+          rowClass = 'highlight-green';
         }
 
         const btnClass = isDone 
@@ -266,6 +370,40 @@
           </tr>
         `;
       }).join('');
+    }
+
+    function getSignificantTokens(row) {
+      let tokens = new Set();
+      for (let k in row) {
+        let kUpper = k.toUpperCase().trim();
+        let val = String(row[k] || '').trim().toLowerCase();
+        if (kUpper.includes('OF') || kUpper.includes('PEDIDO') || kUpper.includes('ORDEN') || kUpper.includes('DIA') || kUpper.includes('TURNO')) continue;
+        if (val) {
+          val.split(/[\s\/\-\,\._]+/).forEach(t => { if (t.trim().length > 0) tokens.add(t.trim()); });
+        }
+      }
+      return tokens;
+    }
+
+    function rowsMatch(sourceRow, targetRow) {
+      let srcTokens = getSignificantTokens(sourceRow);
+      let tgtTokens = getSignificantTokens(targetRow);
+      if (srcTokens.size === 0 || tgtTokens.size === 0) return false;
+      let matchCount = 0;
+      srcTokens.forEach(t => { if (tgtTokens.has(t)) matchCount++; });
+      return (matchCount / srcTokens.size) >= 0.75;
+    }
+
+    function isCompletedInSection(week, sectionCode, targetRow) {
+      const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
+      const sourceRows = weekData[sectionCode] || [];
+      for (let i = 0; i < sourceRows.length; i++) {
+        const key = `${week}-${sectionCode}-${i}`;
+        if (completedRows[key]) {
+          if (rowsMatch(sourceRows[i], targetRow)) return true;
+        }
+      }
+      return false;
     }
 
     function toggleComplete(index) {
@@ -295,19 +433,16 @@
         } else if (elem.webkitRequestFullscreen) {
           elem.webkitRequestFullscreen();
         } else {
-          alert("Tu navegador móvil no permite pantalla completa mediante botón. Añade la página a la pantalla de inicio del dispositivo para abrirla como aplicación a pantalla completa.");
+          alert("Tu navegador móvil no permite pantalla completa mediante botón.");
         }
       } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen();
-        }
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
       }
     }
 
     fetchData();
-    setInterval(fetchData, 30000);
+    setInterval(fetchData, 30000); // Se actualiza cada 30 segundos
   </script>
 </body>
 </html>

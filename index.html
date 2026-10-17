@@ -73,7 +73,6 @@
     </div>
     
     <div class="flex items-center space-x-3">
-      <!-- Botón para abrir aviso a mantenimiento desde las máquinas -->
       <button onclick="openAlertModal()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-xs flex items-center space-x-1 shadow transition animate-pulse">
         <span>🚨</span>
         <span>Avisar Mantenimiento</span>
@@ -84,7 +83,7 @@
     </div>
   </div>
 
-  <!-- Contenido de Tablas / Mantenimiento -->
+  <!-- Contenido -->
   <main class="flex-1 p-4 overflow-auto">
     <div class="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700">
       <div class="overflow-x-auto">
@@ -98,7 +97,7 @@
     </div>
   </main>
 
-  <!-- Modal para escribir incidencia a Mantenimiento -->
+  <!-- Modal -->
   <div id="alert-modal" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
       <h3 class="text-lg font-bold text-red-400 mb-2 flex items-center space-x-2">
@@ -170,8 +169,7 @@
 
     function changeWeek() {
       currentWeek = document.getElementById('week-select').value;
-      if (currentSection === 'MANT') renderCurrentTable();
-      else renderCurrentTable();
+      renderCurrentTable();
     }
 
     function switchTab(section) {
@@ -191,7 +189,6 @@
         }
       });
 
-      // Ocultar buscador y progreso si está en la pestaña de Mantenimiento
       const controlsBar = document.getElementById('controls-bar');
       if (section === 'MANT') {
         controlsBar.style.display = 'none';
@@ -224,8 +221,7 @@
       try {
         await fetch(API_URL, {
           method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'addAlert',
             week: currentWeek || 'S30',
@@ -236,7 +232,7 @@
 
         closeAlertModal();
         alert("¡Alerta enviada a mantenimiento correctamente!");
-        setTimeout(fetchData, 1500); // Recargar datos tras un instante
+        setTimeout(fetchData, 1500);
       } catch (err) {
         console.error(err);
         alert("Error al enviar la alerta.");
@@ -249,8 +245,7 @@
       try {
         await fetch(API_URL, {
           method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'resolveAlert',
             message: message
@@ -269,7 +264,6 @@
       const bodyContainer = document.getElementById('table-body');
       const query = document.getElementById('search-input').value.toLowerCase();
 
-      // Vista de Mantenimiento
       if (currentSection === 'MANT') {
         const alerts = fullData.alerts || [];
         headersContainer.innerHTML = `<th class="px-3 py-3 text-center">ACCIÓN</th><th class="px-3 py-3">FECHA/HORA</th><th class="px-3 py-3">SEMANA</th><th class="px-3 py-3">SECCIÓN / MÁQUINA</th><th class="px-3 py-3">INCIDENCIA</th><th class="px-3 py-3 text-center">ESTADO</th>`;
@@ -289,7 +283,7 @@
 
           const rowClass = isPending ? 'bg-red-950/20 border-l-4 border-red-500' : 'opacity-50';
           const btnHtml = isPending 
-            ? `<button onclick="resolveMaintenanceAlert('${msg}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold shadow">✓ SOLUCIONAR</button>`
+            ? `<button onclick="resolveMaintenanceAlert('${encodeURIComponent(msg)}'.replace(/'/g, \"\\\\'\"))" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold shadow">✓ SOLUCIONAR</button>`
             : `<span class="text-xs text-emerald-400 font-bold">RESUELTO</span>`;
           const estadoBadge = isPending 
             ? `<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full text-xs font-bold border border-red-500/30">PENDIENTE</span>`
@@ -309,7 +303,6 @@
         return;
       }
 
-      // Vistas de Máquinas (Producción, Escuadradora, Lijadora)
       const weekData = fullData.data && fullData.data[currentWeek] ? fullData.data[currentWeek] : {};
       const rows = weekData[currentSection] || [];
 
@@ -442,7 +435,7 @@
     }
 
     fetchData();
-    setInterval(fetchData, 30000); // Se actualiza cada 30 segundos
+    setInterval(fetchData, 30000);
   </script>
 </body>
 </html>

@@ -48,7 +48,7 @@
     </div>
   </header>
 
-  <!-- Pestañas de Máquinas / Secciones y Mantenimiento -->
+  <!-- Pestañas -->
   <nav class="bg-slate-800/50 p-2 flex flex-wrap space-x-2 border-b border-slate-700 gap-2">
     <button id="btn-prod" onclick="switchTab('PROD')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base">
       📋 Producción
@@ -65,7 +65,7 @@
     </button>
   </nav>
 
-  <!-- Barra de Filtro, Progreso y Botón de Alerta -->
+  <!-- Barra de Filtro, Progreso y Alerta -->
   <div id="controls-bar" class="bg-slate-800/80 px-4 py-3 flex flex-wrap justify-between items-center gap-3 border-b border-slate-700">
     <div class="flex items-center space-x-2 w-full sm:w-auto flex-1 max-w-md">
       <span class="text-slate-400">🔍</span>
@@ -239,7 +239,7 @@
       }
     }
 
-    async function resolveMaintenanceAlert(message) {
+    async function resolveMaintenanceAlert(sheetRow) {
       if (!confirm("¿Marcar esta incidencia como solucionada?")) return;
 
       try {
@@ -248,7 +248,7 @@
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'resolveAlert',
-            message: message
+            rowIndex: sheetRow
           })
         });
 
@@ -257,6 +257,96 @@
         console.error(err);
         alert("Error al actualizar la incidencia.");
       }
+    }
+
+    // Extrae campos clave específicos (OF, Pedido, Cliente, Espesor, Material) de cualquier fila
+    function getExtractedFields(row) {
+      let ofVal = '';
+      let pedidoVal = '';
+      let clienteVal = '';
+      let espesorVal = '';
+      let allText = '';
+
+      for (let k in row) {
+        let kUpper = k.toUpperCase().trim();
+        let val = String(row[k] || '').trim().toLowerCase();
+
+        if (kUpper.includes('OF') || kUpper.includes('ORDEN')) ofVal += ' ' + val;
+        if (kUpper.includes('PEDIDO')) pedidoVal += ' ' + val;
+        if (kUpper.includes('CLIENTE')) clienteVal += ' ' + val;
+        if (kUpper.includes('ESPESOR')) espesorVal += ' ' + val;
+
+        allText += ' ' + val;
+      }
+
+      return {
+        of: ofVal.trim(),
+        pedido: pedidoVal.trim(),
+        cliente: clienteVal.trim(),
+        espesor: espesorVal.trim(),
+        full: allText.trim()
+      };
+    }
+
+    // Comparación que evalúa coincidencia de OF/Pedido + Cliente + Espesor
+    function rowsMatch(sourceRow, targetRow) {
+      let src = getExtractedFields(sourceRow);
+      let tgt = getExtractedFields(targetRow);
+
+      // 1. Verificar si hay coincidencia entre OF o Pedido de la origen con el texto de la destino
+      let ofOrOrderMatch = false;
+      let srcTokens = `${src.of} ${src.pedido}`.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
+
+      if (srcTokens.length > 0) {
+        ofOrOrderMatch = srcTokens.some(token => tgt.full.includes(token));
+      }
+
+      // 2. Coincidencia de Cliente
+      let clientMatch = false;
+      if (src.cliente) {
+        let clientTokens = src.cliente.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
+        clientMatch = clientTokens.some(ct => tgt.full.includes(ct));
+      } else {
+        clientMatch = true; // Si no hay columna explícita de cliente, omitir
+      }
+
+      // 3. Coincidencia de Espesor
+      let thicknessMatch = false;
+      if (src.espesor) {
+        let thicknessTokens = src.espesor.split(/[\s\/\-\,\._]+/).filter(t => t.length > 0);
+        thicknessMatch = thicknessTokens.some(tt => tgt.full.includes(tt));
+      } else {
+        thicknessMatch = true; // Si no hay columna explícita de espesor, omitir
+      }
+
+      // Debe coincidir la OF/Pedido (parcial o total) JUNTO con Cliente y Espesor
+      if (ofOrOrderMatch && clientMatch && thicknessMatch) {
+        return true;
+      }
+
+      // Respaldo de alta coincidencia de palabras clave por si están combinadas en una sola celda
+      let srcAllTokens = src.full.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
+      let tgtAllTokens = tgt.full.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
+      if (srcAllTokens.length === 0 || tgtAllTokens.length === 0) return false;
+
+      let matchCount = 0;
+      srcAllTokens.forEach(t => {
+        if (tgtAllTokens.includes(t)) matchCount++;
+      });
+
+      return (matchCount / srcAllTokens.size || matchCount / srcAllTokens.length) >= 0.70;
+    }
+
+    function isCompletedInSection(week, sectionCode, targetRow) {
+      const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
+      const sourceRows = weekData[sectionCode] || [];
+      for (let i = 0; i < sourceRows.length; i++) {
+        const key = `${week}-${sectionCode}-${i}`;
+        if (completedRows[key]) {
+          if (rowsMatch(sourceRows[i], targetRow)) return true;
+        }
+      }
+      return false;
     }
 
     function renderCurrentTable() {
@@ -273,7 +363,7 @@
           return;
         }
 
-        bodyContainer.innerHTML = alerts.map((alertItem) => {
+        bodyContainer.innerHTML = alerts.map((alertItem, index) => {
           const fecha = alertItem['Fecha/Hora'] || alertItem['FECHA/HORA'] || '';
           const semana = alertItem['Semana'] || alertItem['SEMANA'] || '';
           const seccion = alertItem['Sección'] || alertItem['SECCIÓN'] || '';
@@ -281,9 +371,11 @@
           const estado = String(alertItem['Estado'] || alertItem['ESTADO'] || '').toUpperCase();
           const isPending = estado === 'PENDIENTE';
 
+          const sheetRow = index + 2;
+
           const rowClass = isPending ? 'bg-red-950/20 border-l-4 border-red-500' : 'opacity-50';
           const btnHtml = isPending 
-            ? `<button onclick="resolveMaintenanceAlert('${encodeURIComponent(msg)}'.replace(/'/g, \"\\\\'\"))" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold shadow">✓ SOLUCIONAR</button>`
+            ? `<button onclick="resolveMaintenanceAlert(${sheetRow})" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold shadow">✓ SOLUCIONAR</button>`
             : `<span class="text-xs text-emerald-400 font-bold">RESUELTO</span>`;
           const estadoBadge = isPending 
             ? `<span class="bg-red-500/20 text-red-400 px-2.5 py-1 rounded-full text-xs font-bold border border-red-500/30">PENDIENTE</span>`
@@ -363,40 +455,6 @@
           </tr>
         `;
       }).join('');
-    }
-
-    function getSignificantTokens(row) {
-      let tokens = new Set();
-      for (let k in row) {
-        let kUpper = k.toUpperCase().trim();
-        let val = String(row[k] || '').trim().toLowerCase();
-        if (kUpper.includes('OF') || kUpper.includes('PEDIDO') || kUpper.includes('ORDEN') || kUpper.includes('DIA') || kUpper.includes('TURNO')) continue;
-        if (val) {
-          val.split(/[\s\/\-\,\._]+/).forEach(t => { if (t.trim().length > 0) tokens.add(t.trim()); });
-        }
-      }
-      return tokens;
-    }
-
-    function rowsMatch(sourceRow, targetRow) {
-      let srcTokens = getSignificantTokens(sourceRow);
-      let tgtTokens = getSignificantTokens(targetRow);
-      if (srcTokens.size === 0 || tgtTokens.size === 0) return false;
-      let matchCount = 0;
-      srcTokens.forEach(t => { if (tgtTokens.has(t)) matchCount++; });
-      return (matchCount / srcTokens.size) >= 0.75;
-    }
-
-    function isCompletedInSection(week, sectionCode, targetRow) {
-      const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
-      const sourceRows = weekData[sectionCode] || [];
-      for (let i = 0; i < sourceRows.length; i++) {
-        const key = `${week}-${sectionCode}-${i}`;
-        if (completedRows[key]) {
-          if (rowsMatch(sourceRows[i], targetRow)) return true;
-        }
-      }
-      return false;
     }
 
     function toggleComplete(index) {

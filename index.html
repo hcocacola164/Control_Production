@@ -265,103 +265,84 @@
       }
     }
 
+    // Extrae de forma limpia Cliente, Espesor, Especie/Material y Nº OV / Pedido
     function getExtractedFields(row) {
-      let ofVal = '';
-      let pedidoVal = '';
       let clienteVal = '';
       let espesorVal = '';
-      let materialVal = '';
-      let semanaVal = '';
+      let especieVal = '';
+      let ovVal = '';
       let allText = '';
 
       for (let k in row) {
         let kUpper = k.toUpperCase().trim();
-        let val = String(row[k] || '').trim().toLowerCase();
+        let val = String(row[k] || '').trim();
 
-        if (kUpper.includes('OF') || kUpper.includes('ORDEN')) ofVal += ' ' + val;
-        if (kUpper.includes('PEDIDO')) pedidoVal += ' ' + val;
-        if (kUpper.includes('CLIENTE')) clienteVal += ' ' + val;
-        if (kUpper.includes('ESPESOR')) espesorVal += ' ' + val;
-        if (kUpper.includes('MATERIAL') || kUpper.includes('CHAPA') || kUpper.includes('CALIDAD')) materialVal += ' ' + val;
-        if (kUpper.includes('SEMANA')) semanaVal += ' ' + val;
+        if (kUpper.includes('CLIENTE')) clienteVal = val.toLowerCase();
+        if (kUpper.includes('ESPESOR')) espesorVal = val.toLowerCase();
+        if (kUpper.includes('ESPECIE') || kUpper.includes('MATERIAL') || kUpper.includes('CHAPA')) especieVal = val.toLowerCase();
+        if (kUpper.includes('Nº OV') || kUpper.includes('OV') || kUpper.includes('PEDIDO') || kUpper.includes('ORDEN')) ovVal = val.toLowerCase();
 
-        allText += ' ' + val;
+        allText += ' ' + val.toLowerCase();
       }
 
       return {
-        of: ofVal.trim(),
-        pedido: pedidoVal.trim(),
-        cliente: clienteVal.trim(),
-        espesor: espesorVal.trim(),
-        material: materialVal.trim(),
-        semana: semanaVal.trim(),
+        cliente: clienteVal,
+        espesor: espesorVal,
+        especie: especieVal,
+        ov: ovVal,
         full: allText.trim()
       };
     }
 
     function isEwood(row) {
       const f = getExtractedFields(row);
-      return f.full.includes('ewood');
+      return f.especie.includes('ewood') || f.full.includes('ewood');
     }
 
-    function rowsMatch(sourceRow, targetRow, requireStrictMaterial = false) {
+    // Compara Producción/Masillado con Escuadradora evaluando Cliente, Espesor y Pedido/OV
+    function rowsMatch(sourceRow, targetRow) {
       let src = getExtractedFields(sourceRow);
       let tgt = getExtractedFields(targetRow);
 
-      let ofOrOrderMatch = false;
-      let srcTokens = `${src.of} ${src.pedido}`.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
-
-      if (srcTokens.length > 0) {
-        ofOrOrderMatch = srcTokens.some(token => tgt.full.includes(token));
-      }
-
+      // 1. Coincidencia de Cliente (ej: FILIPPI)
       let clientMatch = false;
-      if (src.cliente) {
-        let clientTokens = src.cliente.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
-        clientMatch = clientTokens.some(ct => tgt.full.includes(ct));
+      if (src.cliente && tgt.cliente) {
+        clientMatch = src.cliente.includes(tgt.cliente) || tgt.cliente.includes(src.cliente);
       } else {
-        clientMatch = true;
+        clientMatch = src.full.includes(tgt.cliente) || tgt.full.includes(src.cliente);
       }
 
+      // 2. Coincidencia de Espesor (ej: 12)
       let thicknessMatch = false;
-      if (src.espesor) {
-        let thicknessTokens = src.espesor.split(/[\s\/\-\,\._]+/).filter(t => t.length > 0);
-        thicknessMatch = thicknessTokens.some(tt => tgt.full.includes(tt));
+      if (src.espesor && tgt.espesor) {
+        thicknessMatch = (src.espesor === tgt.espesor);
       } else {
         thicknessMatch = true;
       }
 
-      let materialMatch = true;
-      if (requireStrictMaterial && src.material) {
-        let matTokens = src.material.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
-        if (matTokens.length > 0) {
-          materialMatch = matTokens.some(mt => tgt.full.includes(mt));
-        }
+      // 3. Coincidencia de Pedido / OV (extrae número base ej: '377-1' -> '377')
+      let ovMatch = false;
+      let srcNumMatch = src.ov.match(/\b\d{2,6}\b/);
+      let tgtNumMatch = tgt.ov.match(/\b\d{2,6}\b/);
+
+      if (srcNumMatch && tgtNumMatch) {
+        ovMatch = (srcNumMatch[0] === tgtNumMatch[0]);
+      } else if (src.ov && tgt.ov) {
+        ovMatch = src.ov.includes(tgt.ov) || tgt.ov.includes(src.ov);
+      } else {
+        ovMatch = true; // Si no hay columna explícita de pedido
       }
 
-      if (ofOrOrderMatch && clientMatch && thicknessMatch && materialMatch) {
-        return true;
-      }
-
-      let srcAllTokens = src.full.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
-      let tgtAllTokens = tgt.full.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
-      if (srcAllTokens.length === 0 || tgtAllTokens.length === 0) return false;
-
-      let matchCount = 0;
-      srcAllTokens.forEach(t => {
-        if (tgtAllTokens.includes(t)) matchCount++;
-      });
-
-      return (matchCount / srcAllTokens.length) >= 0.70;
+      return clientMatch && thicknessMatch && ovMatch;
     }
 
-    function isCompletedInSection(week, sectionCode, targetRow, requireStrictMaterial = false) {
+    function isCompletedInSection(week, sectionCode, targetRow) {
       const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
       const sourceRows = weekData[sectionCode] || [];
       for (let i = 0; i < sourceRows.length; i++) {
         const key = `${week}-${sectionCode}-${i}`;
         if (completedRows[key]) {
-          if (rowsMatch(sourceRows[i], targetRow, requireStrictMaterial)) return true;
+          if (rowsMatch(sourceRows[i], targetRow)) return true;
         }
       }
       return false;
@@ -472,7 +453,7 @@
         const isDone = item.isDone;
 
         const prodDone = isCompletedInSection(currentWeek, 'PROD', row);
-        const masDone = isCompletedInSection(currentWeek, 'MAS', row, true);
+        const masDone = isCompletedInSection(currentWeek, 'MAS', row);
         const escDone = isCompletedInSection(currentWeek, 'ESC', row);
         const lijDone = isCompletedInSection(currentWeek, 'LIJ', row);
 
@@ -480,15 +461,15 @@
         if (isDone) {
           rowClass = 'completed-row';
         } else if (currentSection === 'MAS' && prodDone && !isEwood(row)) {
-          rowClass = 'highlight-green';
+          rowClass = 'highlight-green'; // Producción -> Masillado
         } else if (currentSection === 'ESC' && prodDone && isEwood(row)) {
-          rowClass = 'highlight-green';
-        } else if (currentSection === 'ESC' && masDone) {
-          rowClass = 'highlight-green';
+          rowClass = 'highlight-green'; // Producción EWOOD -> Escuadradora directo
+        } else if (currentSection === 'ESC' && masDone && !isEwood(row)) {
+          rowClass = 'highlight-green'; // Masillado -> Escuadradora
         } else if (currentSection === 'LIJ' && escDone) {
-          rowClass = 'highlight-green';
+          rowClass = 'highlight-green'; // Escuadradora -> Lijadora
         } else if (currentSection === 'MUE' && lijDone) {
-          rowClass = 'highlight-green';
+          rowClass = 'highlight-green'; // Lijadora -> Muelle
         }
 
         const btnClass = isDone 
@@ -515,14 +496,12 @@
       completedRows[key] = willBeDone;
       localStorage.setItem('completedRows', JSON.stringify(completedRows));
 
-      // Al marcar HECHO en Lijadora, duplicar fila en Muelle incluyendo la información de la Semana
       if (currentSection === 'LIJ' && willBeDone) {
         const weekData = fullData.data && fullData.data[currentWeek] ? fullData.data[currentWeek] : {};
         const rows = weekData['LIJ'] || [];
         const rowToCopy = rows[index];
 
         if (rowToCopy) {
-          // Asegurar que lleve el dato de semana explícito
           let copyData = Object.assign({}, rowToCopy);
           if (!copyData["SEMANA"] && !copyData["Semana"]) {
             copyData["SEMANA"] = currentWeek;

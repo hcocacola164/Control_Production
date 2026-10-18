@@ -517,13 +517,13 @@
       completedRows[key] = willBeDone;
       localStorage.setItem('completedRows', JSON.stringify(completedRows));
 
-      if (currentSection === 'LIJ' && willBeDone) {
+      if (currentSection === 'LIJ') {
         const weekData = fullData.data && fullData.data[currentWeek] ? fullData.data[currentWeek] : {};
         const rows = (weekData['LIJ'] || []).filter(isNonEmptyRow);
-        const rowToCopy = rows[index];
+        const rowTarget = rows[index];
 
-        if (rowToCopy) {
-          let copyData = Object.assign({}, rowToCopy);
+        if (rowTarget) {
+          let copyData = Object.assign({}, rowTarget);
           let extracted = getExtractedFields(copyData);
           
           let semNum = extracted.sem;
@@ -542,18 +542,20 @@
           }
           copyData["SEMANA"] = semNum;
 
+          const actionType = willBeDone ? 'copyToMuelle' : 'removeFromMuelle';
+
           try {
             fetch(API_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'text/plain;charset=utf-8' },
               body: JSON.stringify({
-                action: 'copyToMuelle',
+                action: actionType,
                 week: currentWeek,
                 rowData: copyData
               })
             }).then(() => setTimeout(fetchData, 1500));
           } catch (e) {
-            console.error("Error al duplicar a Muelle:", e);
+            console.error("Error al actualizar Muelle:", e);
           }
         }
       }

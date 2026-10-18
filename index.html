@@ -426,11 +426,12 @@
         return;
       }
 
+      // Filtrar columnas no deseadas en Muelle (DIA, TURNO, SEMANA, SEM)
       let displayKeys = Object.keys(rows[0]);
       if (currentSection === 'MUE') {
         displayKeys = displayKeys.filter(k => {
           let u = k.trim().toUpperCase();
-          return u !== 'DIA' && u !== 'TURNO';
+          return u !== 'DIA' && u !== 'TURNO' && u !== 'SEMANA' && u !== 'SEM';
         });
       }
 
@@ -524,23 +525,6 @@
 
         if (rowTarget) {
           let copyData = Object.assign({}, rowTarget);
-          let extracted = getExtractedFields(copyData);
-          
-          let semNum = extracted.sem;
-          if (!semNum) {
-            for (let k in copyData) {
-              if (k.toUpperCase().trim() === 'SEM' || k.toUpperCase().includes('SEM')) {
-                semNum = String(copyData[k]).trim();
-                break;
-              }
-            }
-          }
-          if (!semNum) semNum = currentWeek.replace('S','');
-
-          if (semNum && !String(semNum).toUpperCase().startsWith('S')) {
-            semNum = 'S' + semNum;
-          }
-          copyData["SEMANA"] = semNum;
 
           const actionType = willBeDone ? 'copyToMuelle' : 'removeFromMuelle';
 

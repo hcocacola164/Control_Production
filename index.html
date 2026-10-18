@@ -283,7 +283,9 @@
         if (kUpper.includes('ESPECIE') || kUpper.includes('MATERIAL') || kUpper.includes('CHAPA')) especieVal = val.toLowerCase();
         if (kUpper.includes('Nº OV') || kUpper.includes('OV') || kUpper.includes('PEDIDO')) ovVal = val.toLowerCase();
         if (kUpper.includes('OF') || kUpper.includes('ORDEN')) ofVal = val.toLowerCase();
-        if (kUpper === 'SEM' || kUpper === 'SEMANA') semVal = val;
+        if (kUpper === 'SEM' || kUpper === 'SEMANA' || kUpper.includes('SEM')) {
+          if (val) semVal = val;
+        }
 
         allText += ' ' + val.toLowerCase();
       }
@@ -424,7 +426,6 @@
         return;
       }
 
-      // Ocultar las columnas DIA y TURNO si estamos en la sección Muelle
       let displayKeys = Object.keys(rows[0]);
       if (currentSection === 'MUE') {
         displayKeys = displayKeys.filter(k => {
@@ -525,7 +526,18 @@
           let copyData = Object.assign({}, rowToCopy);
           let extracted = getExtractedFields(copyData);
           
-          let semNum = extracted.sem || currentWeek.replace('S','');
+          // Capturar el valor real de SEM o buscarlo en la fila original
+          let semNum = extracted.sem;
+          if (!semNum) {
+            for (let k in copyData) {
+              if (k.toUpperCase().includes('SEM')) {
+                semNum = String(copyData[k]).trim();
+                break;
+              }
+            }
+          }
+          if (!semNum) semNum = currentWeek.replace('S','');
+
           if (semNum && !String(semNum).toUpperCase().startsWith('S')) {
             semNum = 'S' + semNum;
           }

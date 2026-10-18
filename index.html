@@ -304,48 +304,40 @@
       return f.especie.includes('ewood') || f.full.includes('ewood');
     }
 
-    function rowsMatch(sourceRow, targetRow, isProdToMas = false) {
+    function rowsMatch(sourceRow, targetRow) {
       let src = getExtractedFields(sourceRow);
       let tgt = getExtractedFields(targetRow);
 
-      if (isProdToMas) {
-        let ovMatch = (src.ov && tgt.ov && src.ov === tgt.ov);
-        let ofMatch = (src.of && tgt.of && src.of === tgt.of);
-        let espesorMatch = (src.espesor && tgt.espesor && src.espesor === tgt.espesor);
-        return (ovMatch || ofMatch) && espesorMatch;
-      }
+      if (src.ov && tgt.ov && src.ov === tgt.ov) return true;
+      if (src.of && tgt.of && src.of === tgt.of) return true;
+
+      let srcNum = (src.ov || src.of).match(/\b\d{2,6}\b/);
+      let tgtNum = (tgt.ov || tgt.of).match(/\b\d{2,6}\b/);
+      if (srcNum && tgtNum && srcNum[0] === tgtNum[0]) return true;
 
       let clientMatch = false;
       if (src.cliente && tgt.cliente) {
         clientMatch = src.cliente.includes(tgt.cliente) || tgt.cliente.includes(src.cliente);
-      } else {
-        clientMatch = src.full.includes(tgt.cliente) || tgt.full.includes(src.cliente);
       }
 
-      let thicknessMatch = (src.espesor && tgt.espesor) ? (src.espesor === tgt.espesor) : true;
+      let thicknessMatch = (src.espesor && tgt.espesor) ? (src.espesor === tgt.espesor) : false;
 
-      let ovMatch = false;
-      let srcNumMatch = (src.ov || src.of).match(/\b\d{2,6}\b/);
-      let tgtNumMatch = (tgt.ov || tgt.of).match(/\b\d{2,6}\b/);
-
-      if (srcNumMatch && tgtNumMatch) {
-        ovMatch = (srcNumMatch[0] === tgtNumMatch[0]);
-      } else if (src.ov && tgt.ov) {
-        ovMatch = src.ov.includes(tgt.ov) || tgt.ov.includes(src.ov);
-      } else {
-        ovMatch = true;
-      }
-
-      return clientMatch && thicknessMatch && ovMatch;
+      return clientMatch && thicknessMatch;
     }
 
-    function isCompletedInSection(week, sectionCode, targetRow, isProdToMas = false) {
+    function isCompletedInSection(week, sectionCode, targetRow, rowIndex = -1) {
       const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
       const sourceRows = weekData[sectionCode] || [];
+
+      if (sectionCode === 'PROD' && currentSection === 'MAS' && rowIndex >= 0) {
+        const prodKey = `${week}-PROD-${rowIndex}`;
+        if (completedRows[prodKey]) return true;
+      }
+
       for (let i = 0; i < sourceRows.length; i++) {
         const key = `${week}-${sectionCode}-${i}`;
         if (completedRows[key]) {
-          if (rowsMatch(sourceRows[i], targetRow, isProdToMas)) return true;
+          if (rowsMatch(sourceRows[i], targetRow)) return true;
         }
       }
       return false;
@@ -432,6 +424,15 @@
         return;
       }
 
+      // Ocultar las columnas DIA y TURNO si estamos en la sección Muelle
+      let displayKeys = Object.keys(rows[0]);
+      if (currentSection === 'MUE') {
+        displayKeys = displayKeys.filter(k => {
+          let u = k.trim().toUpperCase();
+          return u !== 'DIA' && u !== 'TURNO';
+        });
+      }
+
       let mappedRows = rows.map((row, originalIndex) => {
         const key = `${currentWeek}-${currentSection}-${originalIndex}`;
         return {
@@ -451,8 +452,7 @@
         });
       }
 
-      const keys = Object.keys(rows[0]);
-      headersContainer.innerHTML = `<th class="px-3 py-3 text-center">ESTADO</th>` + keys.map(k => `<th class="px-3 py-3">${k}</th>`).join('');
+      headersContainer.innerHTML = `<th class="px-3 py-3 text-center">ESTADO</th>` + displayKeys.map(k => `<th class="px-3 py-3">${k}</th>`).join('');
 
       let completedCount = 0;
 
@@ -472,18 +472,17 @@
         const originalIndex = item.originalIndex;
         const isDone = item.isDone;
 
-        const prodDoneForMas = isCompletedInSection(currentWeek, 'PROD', row, true);
-        const prodDoneForEsc = isCompletedInSection(currentWeek, 'PROD', row, false);
-        const masDone = isCompletedInSection(currentWeek, 'MAS', row, false);
-        const escDone = isCompletedInSection(currentWeek, 'ESC', row, false);
-        const lijDone = isCompletedInSection(currentWeek, 'LIJ', row, false);
+        const prodDone = isCompletedInSection(currentWeek, 'PROD', row, originalIndex);
+        const masDone = isCompletedInSection(currentWeek, 'MAS', row);
+        const escDone = isCompletedInSection(currentWeek, 'ESC', row);
+        const lijDone = isCompletedInSection(currentWeek, 'LIJ', row);
 
         let rowClass = '';
         if (isDone) {
           rowClass = 'completed-row';
-        } else if (currentSection === 'MAS' && prodDoneForMas && !isEwood(row)) {
+        } else if (currentSection === 'MAS' && prodDone && !isEwood(row)) {
           rowClass = 'highlight-green';
-        } else if (currentSection === 'ESC' && prodDoneForEsc && isEwood(row)) {
+        } else if (currentSection === 'ESC' && prodDone && isEwood(row)) {
           rowClass = 'highlight-green';
         } else if (currentSection === 'ESC' && masDone && !isEwood(row)) {
           rowClass = 'highlight-green';
@@ -505,7 +504,7 @@
                 ${btnText}
               </button>
             </td>
-            ${keys.map(k => `<td class="px-3 py-2 border-t border-slate-700/50 whitespace-nowrap">${row[k] || ''}</td>`).join('')}
+            ${displayKeys.map(k => `<td class="px-3 py-2 border-t border-slate-700/50 whitespace-nowrap">${row[k] || ''}</td>`).join('')}
           </tr>
         `;
       }).join('');
@@ -526,8 +525,11 @@
           let copyData = Object.assign({}, rowToCopy);
           let extracted = getExtractedFields(copyData);
           
-          // Asigna el número de la columna SEM (ej: 37, 38)
-          copyData["SEMANA"] = extracted.sem || currentWeek;
+          let semNum = extracted.sem || currentWeek.replace('S','');
+          if (semNum && !String(semNum).toUpperCase().startsWith('S')) {
+            semNum = 'S' + semNum;
+          }
+          copyData["SEMANA"] = semNum;
 
           try {
             fetch(API_URL, {

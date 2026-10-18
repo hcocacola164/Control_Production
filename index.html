@@ -526,11 +526,10 @@
           let copyData = Object.assign({}, rowToCopy);
           let extracted = getExtractedFields(copyData);
           
-          // Capturar el valor real de SEM o buscarlo en la fila original
           let semNum = extracted.sem;
           if (!semNum) {
             for (let k in copyData) {
-              if (k.toUpperCase().includes('SEM')) {
+              if (k.toUpperCase().trim() === 'SEM' || k.toUpperCase().includes('SEM')) {
                 semNum = String(copyData[k]).trim();
                 break;
               }

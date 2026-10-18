@@ -19,7 +19,7 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
-  <!-- Header con Logo, Selector de Semana y Botón Kiosco -->
+  <!-- Header -->
   <header class="bg-slate-800 border-b border-slate-700 p-4 flex flex-wrap justify-between items-center gap-3 shadow-lg">
     <div class="flex items-center space-x-3">
       <img src="logo.png.JPG" alt="Logo Empresa" class="h-10 w-auto max-w-[120px] object-contain bg-white/5 rounded px-2 py-1" onerror="this.style.display='none'">
@@ -28,7 +28,6 @@
     </div>
 
     <div class="flex items-center space-x-3">
-      <!-- Selector de Semana -->
       <div class="flex items-center space-x-2 bg-slate-700/60 px-3 py-1.5 rounded-lg border border-slate-600">
         <label for="week-select" class="text-xs font-bold uppercase text-slate-300">Semana:</label>
         <select id="week-select" onchange="changeWeek()" class="bg-slate-800 text-emerald-400 font-bold text-sm rounded px-2 py-1 outline-none border border-slate-600 cursor-pointer">
@@ -36,7 +35,6 @@
         </select>
       </div>
 
-      <!-- Botón Modo Kiosco / Pantalla Completa -->
       <button onclick="toggleFullscreen()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 font-bold text-xs flex items-center space-x-1 transition" title="Pantalla completa">
         <span>⛶</span>
         <span class="hidden md:inline">Kiosco</span>
@@ -48,16 +46,22 @@
     </div>
   </header>
 
-  <!-- Pestañas -->
+  <!-- Navegación -->
   <nav class="bg-slate-800/50 p-2 flex flex-wrap space-x-2 border-b border-slate-700 gap-2">
     <button id="btn-prod" onclick="switchTab('PROD')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base">
       📋 Producción
+    </button>
+    <button id="btn-mas" onclick="switchTab('MAS')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
+      🛠️ Masillado
     </button>
     <button id="btn-esc" onclick="switchTab('ESC')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
       📐 Escuadradora
     </button>
     <button id="btn-lij" onclick="switchTab('LIJ')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
       🪚 Lijadora
+    </button>
+    <button id="btn-mue" onclick="switchTab('MUE')" class="flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base">
+      📦 Muelle
     </button>
     <button id="btn-mant" onclick="switchTab('MANT')" class="py-3 px-4 rounded-lg font-semibold text-center transition bg-amber-600 text-white shadow-md text-sm md:text-base flex items-center space-x-1">
       <span>🔧 Mantenimiento</span>
@@ -83,7 +87,7 @@
     </div>
   </div>
 
-  <!-- Contenido -->
+  <!-- Contenido principal -->
   <main class="flex-1 p-4 overflow-auto">
     <div class="bg-slate-800 rounded-xl shadow-xl overflow-hidden border border-slate-700">
       <div class="overflow-x-auto">
@@ -97,7 +101,7 @@
     </div>
   </main>
 
-  <!-- Modal -->
+  <!-- Modal para avisos -->
   <div id="alert-modal" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center hidden p-4">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
       <h3 class="text-lg font-bold text-red-400 mb-2 flex items-center space-x-2">
@@ -175,17 +179,19 @@
     function switchTab(section) {
       currentSection = section;
       
-      const btnMap = { 'PROD': 'btn-prod', 'ESC': 'btn-esc', 'LIJ': 'btn-lij', 'MANT': 'btn-mant' };
+      const btnMap = { 'PROD': 'btn-prod', 'MAS': 'btn-mas', 'ESC': 'btn-esc', 'LIJ': 'btn-lij', 'MUE': 'btn-mue', 'MANT': 'btn-mant' };
       Object.keys(btnMap).forEach(sec => {
         const btn = document.getElementById(btnMap[sec]);
-        if (sec === 'MANT') {
-          btn.className = sec === section 
-            ? "py-3 px-4 rounded-lg font-semibold text-center transition bg-amber-600 text-white shadow-md text-sm md:text-base flex items-center space-x-1 ring-2 ring-white/30" 
-            : "py-3 px-4 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base flex items-center space-x-1";
-        } else {
-          btn.className = sec === section 
-            ? "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base" 
-            : "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base";
+        if (btn) {
+          if (sec === 'MANT') {
+            btn.className = sec === section 
+              ? "py-3 px-4 rounded-lg font-semibold text-center transition bg-amber-600 text-white shadow-md text-sm md:text-base flex items-center space-x-1 ring-2 ring-white/30" 
+              : "py-3 px-4 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base flex items-center space-x-1";
+          } else {
+            btn.className = sec === section 
+              ? "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-blue-600 text-white shadow-md text-sm md:text-base" 
+              : "flex-1 py-3 px-2 rounded-lg font-semibold text-center transition bg-slate-700 text-slate-300 hover:bg-slate-600 text-sm md:text-base";
+          }
         }
       });
 
@@ -215,7 +221,7 @@
         return;
       }
 
-      const sectionNames = { 'PROD': 'Órdenes de Producción', 'ESC': 'Escuadradora', 'LIJ': 'Lijadora' };
+      const sectionNames = { 'PROD': 'Órdenes de Producción', 'MAS': 'Masillado', 'ESC': 'Escuadradora', 'LIJ': 'Lijadora', 'MUE': 'Muelle' };
       const sectionName = sectionNames[currentSection] || currentSection;
 
       try {
@@ -259,12 +265,13 @@
       }
     }
 
-    // Extrae campos clave específicos (OF, Pedido, Cliente, Espesor, Material) de cualquier fila
     function getExtractedFields(row) {
       let ofVal = '';
       let pedidoVal = '';
       let clienteVal = '';
       let espesorVal = '';
+      let materialVal = '';
+      let semanaVal = '';
       let allText = '';
 
       for (let k in row) {
@@ -275,6 +282,8 @@
         if (kUpper.includes('PEDIDO')) pedidoVal += ' ' + val;
         if (kUpper.includes('CLIENTE')) clienteVal += ' ' + val;
         if (kUpper.includes('ESPESOR')) espesorVal += ' ' + val;
+        if (kUpper.includes('MATERIAL') || kUpper.includes('CHAPA') || kUpper.includes('CALIDAD')) materialVal += ' ' + val;
+        if (kUpper.includes('SEMANA')) semanaVal += ' ' + val;
 
         allText += ' ' + val;
       }
@@ -284,16 +293,21 @@
         pedido: pedidoVal.trim(),
         cliente: clienteVal.trim(),
         espesor: espesorVal.trim(),
+        material: materialVal.trim(),
+        semana: semanaVal.trim(),
         full: allText.trim()
       };
     }
 
-    // Comparación que evalúa coincidencia de OF/Pedido + Cliente + Espesor
-    function rowsMatch(sourceRow, targetRow) {
+    function isEwood(row) {
+      const f = getExtractedFields(row);
+      return f.full.includes('ewood');
+    }
+
+    function rowsMatch(sourceRow, targetRow, requireStrictMaterial = false) {
       let src = getExtractedFields(sourceRow);
       let tgt = getExtractedFields(targetRow);
 
-      // 1. Verificar si hay coincidencia entre OF o Pedido de la origen con el texto de la destino
       let ofOrOrderMatch = false;
       let srcTokens = `${src.of} ${src.pedido}`.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
 
@@ -301,30 +315,34 @@
         ofOrOrderMatch = srcTokens.some(token => tgt.full.includes(token));
       }
 
-      // 2. Coincidencia de Cliente
       let clientMatch = false;
       if (src.cliente) {
         let clientTokens = src.cliente.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
         clientMatch = clientTokens.some(ct => tgt.full.includes(ct));
       } else {
-        clientMatch = true; // Si no hay columna explícita de cliente, omitir
+        clientMatch = true;
       }
 
-      // 3. Coincidencia de Espesor
       let thicknessMatch = false;
       if (src.espesor) {
         let thicknessTokens = src.espesor.split(/[\s\/\-\,\._]+/).filter(t => t.length > 0);
         thicknessMatch = thicknessTokens.some(tt => tgt.full.includes(tt));
       } else {
-        thicknessMatch = true; // Si no hay columna explícita de espesor, omitir
+        thicknessMatch = true;
       }
 
-      // Debe coincidir la OF/Pedido (parcial o total) JUNTO con Cliente y Espesor
-      if (ofOrOrderMatch && clientMatch && thicknessMatch) {
+      let materialMatch = true;
+      if (requireStrictMaterial && src.material) {
+        let matTokens = src.material.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
+        if (matTokens.length > 0) {
+          materialMatch = matTokens.some(mt => tgt.full.includes(mt));
+        }
+      }
+
+      if (ofOrOrderMatch && clientMatch && thicknessMatch && materialMatch) {
         return true;
       }
 
-      // Respaldo de alta coincidencia de palabras clave por si están combinadas en una sola celda
       let srcAllTokens = src.full.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
       let tgtAllTokens = tgt.full.split(/[\s\/\-\,\._]+/).filter(t => t.length > 1);
       if (srcAllTokens.length === 0 || tgtAllTokens.length === 0) return false;
@@ -334,19 +352,25 @@
         if (tgtAllTokens.includes(t)) matchCount++;
       });
 
-      return (matchCount / srcAllTokens.size || matchCount / srcAllTokens.length) >= 0.70;
+      return (matchCount / srcAllTokens.length) >= 0.70;
     }
 
-    function isCompletedInSection(week, sectionCode, targetRow) {
+    function isCompletedInSection(week, sectionCode, targetRow, requireStrictMaterial = false) {
       const weekData = fullData.data && fullData.data[week] ? fullData.data[week] : {};
       const sourceRows = weekData[sectionCode] || [];
       for (let i = 0; i < sourceRows.length; i++) {
         const key = `${week}-${sectionCode}-${i}`;
         if (completedRows[key]) {
-          if (rowsMatch(sourceRows[i], targetRow)) return true;
+          if (rowsMatch(sourceRows[i], targetRow, requireStrictMaterial)) return true;
         }
       }
       return false;
+    }
+
+    function extractOrderNumber(row) {
+      let fields = getExtractedFields(row);
+      let match = fields.full.match(/\b\d{3,8}\b/);
+      return match ? parseInt(match[0]) : 99999999;
     }
 
     function renderCurrentTable() {
@@ -354,6 +378,7 @@
       const bodyContainer = document.getElementById('table-body');
       const query = document.getElementById('search-input').value.toLowerCase();
 
+      // Sección Mantenimiento
       if (currentSection === 'MANT') {
         const alerts = fullData.alerts || [];
         headersContainer.innerHTML = `<th class="px-3 py-3 text-center">ACCIÓN</th><th class="px-3 py-3">FECHA/HORA</th><th class="px-3 py-3">SEMANA</th><th class="px-3 py-3">SECCIÓN / MÁQUINA</th><th class="px-3 py-3">INCIDENCIA</th><th class="px-3 py-3 text-center">ESTADO</th>`;
@@ -395,8 +420,9 @@
         return;
       }
 
+      // Resto de Secciones
       const weekData = fullData.data && fullData.data[currentWeek] ? fullData.data[currentWeek] : {};
-      const rows = weekData[currentSection] || [];
+      let rows = weekData[currentSection] || [];
 
       if (!rows.length) {
         headersContainer.innerHTML = `<th class="px-4 py-3">Aviso</th>`;
@@ -405,37 +431,63 @@
         return;
       }
 
+      let mappedRows = rows.map((row, originalIndex) => {
+        const key = `${currentWeek}-${currentSection}-${originalIndex}`;
+        return {
+          row: row,
+          originalIndex: originalIndex,
+          isDone: !!completedRows[key],
+          orderNum: extractOrderNumber(row)
+        };
+      });
+
+      if (currentSection === 'MUE') {
+        mappedRows.sort((a, b) => {
+          if (a.isDone !== b.isDone) {
+            return a.isDone ? 1 : -1;
+          }
+          return a.orderNum - b.orderNum;
+        });
+      }
+
       const keys = Object.keys(rows[0]);
       headersContainer.innerHTML = `<th class="px-3 py-3 text-center">ESTADO</th>` + keys.map(k => `<th class="px-3 py-3">${k}</th>`).join('');
 
       let completedCount = 0;
 
-      const filteredRows = rows.filter(row => {
+      const filteredMappedRows = mappedRows.filter(item => {
         if (!query) return true;
-        return Object.values(row).some(val => String(val).toLowerCase().includes(query));
+        return Object.values(item.row).some(val => String(val).toLowerCase().includes(query));
       });
 
-      rows.forEach((row, idx) => {
-        const key = `${currentWeek}-${currentSection}-${idx}`;
-        if (completedRows[key]) completedCount++;
+      mappedRows.forEach(item => {
+        if (item.isDone) completedCount++;
       });
 
       updateProgress(completedCount, rows.length);
 
-      bodyContainer.innerHTML = filteredRows.map((row) => {
-        const originalIndex = rows.indexOf(row);
-        const key = `${currentWeek}-${currentSection}-${originalIndex}`;
-        const isDone = !!completedRows[key];
+      bodyContainer.innerHTML = filteredMappedRows.map((item) => {
+        const row = item.row;
+        const originalIndex = item.originalIndex;
+        const isDone = item.isDone;
 
         const prodDone = isCompletedInSection(currentWeek, 'PROD', row);
+        const masDone = isCompletedInSection(currentWeek, 'MAS', row, true);
         const escDone = isCompletedInSection(currentWeek, 'ESC', row);
+        const lijDone = isCompletedInSection(currentWeek, 'LIJ', row);
 
         let rowClass = '';
         if (isDone) {
           rowClass = 'completed-row';
-        } else if (currentSection === 'ESC' && prodDone) {
+        } else if (currentSection === 'MAS' && prodDone && !isEwood(row)) {
+          rowClass = 'highlight-green';
+        } else if (currentSection === 'ESC' && prodDone && isEwood(row)) {
+          rowClass = 'highlight-green';
+        } else if (currentSection === 'ESC' && masDone) {
           rowClass = 'highlight-green';
         } else if (currentSection === 'LIJ' && escDone) {
+          rowClass = 'highlight-green';
+        } else if (currentSection === 'MUE' && lijDone) {
           rowClass = 'highlight-green';
         }
 
@@ -457,10 +509,41 @@
       }).join('');
     }
 
-    function toggleComplete(index) {
+    async function toggleComplete(index) {
       const key = `${currentWeek}-${currentSection}-${index}`;
-      completedRows[key] = !completedRows[key];
+      const willBeDone = !completedRows[key];
+      completedRows[key] = willBeDone;
       localStorage.setItem('completedRows', JSON.stringify(completedRows));
+
+      // Al marcar HECHO en Lijadora, duplicar fila en Muelle incluyendo la información de la Semana
+      if (currentSection === 'LIJ' && willBeDone) {
+        const weekData = fullData.data && fullData.data[currentWeek] ? fullData.data[currentWeek] : {};
+        const rows = weekData['LIJ'] || [];
+        const rowToCopy = rows[index];
+
+        if (rowToCopy) {
+          // Asegurar que lleve el dato de semana explícito
+          let copyData = Object.assign({}, rowToCopy);
+          if (!copyData["SEMANA"] && !copyData["Semana"]) {
+            copyData["SEMANA"] = currentWeek;
+          }
+
+          try {
+            fetch(API_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({
+                action: 'copyToMuelle',
+                week: currentWeek,
+                rowData: copyData
+              })
+            }).then(() => setTimeout(fetchData, 1500));
+          } catch (e) {
+            console.error("Error al duplicar a Muelle:", e);
+          }
+        }
+      }
+
       renderCurrentTable();
     }
 
